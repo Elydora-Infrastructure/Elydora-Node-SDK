@@ -118,11 +118,13 @@ async function cmdInstall(args: string[]): Promise<void> {
     ...(token ? { token } : {}),
   };
   await fsp.writeFile(agentConfigPath, JSON.stringify(agentConfig, null, 2) + '\n', 'utf-8');
+  await fsp.chmod(agentConfigPath, 0o600);
   console.log(`  Agent config: ${agentConfigPath}`);
 
   // Write private key (chmod 600)
   const keyPath = path.join(agentsDir, `${agentName}.key`);
   await fsp.writeFile(keyPath, privateKey, { encoding: 'utf-8', mode: 0o600 });
+  await fsp.chmod(keyPath, 0o600);
   console.log(`  Private key:  ${keyPath}`);
 
   // Generate and write hook script (PostToolUse — audit logging)

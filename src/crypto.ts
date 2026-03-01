@@ -151,8 +151,7 @@ export function derivePublicKey(privateKeyBase64url: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * The initial chain hash value: SHA-256 of 32 zero bytes, base64url encoded.
+ * The initial chain hash value: base64url encoding of 32 zero bytes.
+ * Must match the backend's GENESIS_CHAIN_HASH constant exactly.
  */
-export const ZERO_CHAIN_HASH: string = base64urlEncode(
-  crypto.createHash('sha256').update(Buffer.alloc(32, 0)).digest(),
-);
+export const ZERO_CHAIN_HASH: string = base64urlEncode(Buffer.alloc(32, 0));
