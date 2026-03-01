@@ -99,6 +99,12 @@ const auth = await ElydoraClient.login(baseUrl, email, password);
 
 // Set token on client
 client.setToken(auth.token);
+
+// Get current authenticated user profile
+const { user } = await client.getMe();
+
+// Issue a new API token (with optional TTL in seconds)
+const { token, expires_at } = await client.issueApiToken(3600);
 ```
 
 ### Operations
@@ -141,6 +147,15 @@ await client.freezeAgent(agentId, 'security review');
 
 // Revoke a key
 await client.revokeKey(agentId, kid, 'key rotation');
+
+// List all agents in the organization
+const { agents } = await client.listAgents();
+
+// Unfreeze a previously frozen agent
+await client.unfreezeAgent(agentId, 'review complete');
+
+// Delete an agent permanently
+const { deleted } = await client.deleteAgent(agentId);
 ```
 
 ### Audit
@@ -173,12 +188,33 @@ const { export: exp } = await client.createExport({
 
 const { exports } = await client.listExports();
 const { export: detail, download_url } = await client.getExport(exportId);
+
+// Download export file data
+const data = await client.downloadExport(exportId);
 ```
 
 ### JWKS
 
 ```typescript
 const { keys } = await client.getJWKS();
+```
+
+### Health
+
+```typescript
+// Check API health (no authentication required)
+const health = await client.health();
+// health.status, health.version, health.protocol_version, health.timestamp
+```
+
+### Client State
+
+```typescript
+// Get the current chain hash (useful for debugging/inspection)
+const chainHash = client.getChainHash();
+
+// Get the Ed25519 public key derived from the configured private key
+const publicKey = client.getPublicKey();
 ```
 
 ### Crypto Utilities
@@ -194,6 +230,17 @@ import {
   signEd25519,         // Ed25519 signing
   derivePublicKey,     // Derive public key from private seed
   ZERO_CHAIN_HASH,     // Genesis chain hash constant
+} from '@elydora/sdk';
+```
+
+### Utility Functions
+
+```typescript
+import {
+  uuidv7,           // Generate a UUIDv7 (time-ordered, RFC 9562)
+  generateNonce,     // Generate a 16-byte random nonce (base64url)
+  base64urlEncode,   // Encode Buffer/Uint8Array to base64url (no padding)
+  base64urlDecode,   // Decode base64url string to Buffer
 } from '@elydora/sdk';
 ```
 

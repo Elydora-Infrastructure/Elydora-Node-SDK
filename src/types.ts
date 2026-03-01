@@ -247,6 +247,34 @@ export interface ListExportsResponse {
   readonly exports: Export[];
 }
 
+export interface ListAgentsResponse {
+  readonly agents: Agent[];
+}
+
+export interface UnfreezeAgentResponse {
+  readonly agent: Agent;
+}
+
+export interface DeleteAgentResponse {
+  readonly deleted: boolean;
+}
+
+export interface GetMeResponse {
+  readonly user: User;
+}
+
+export interface IssueApiTokenResponse {
+  readonly token: string;
+  readonly expires_at: number | null;
+}
+
+export interface HealthResponse {
+  readonly status: string;
+  readonly version: string;
+  readonly protocol_version: string;
+  readonly timestamp: number;
+}
+
 export interface JWK {
   readonly kty: string;
   readonly crv?: string;

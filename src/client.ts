@@ -5,6 +5,9 @@ import type {
   RegisterAgentRequest,
   RegisterAgentResponse,
   GetAgentResponse,
+  ListAgentsResponse,
+  UnfreezeAgentResponse,
+  DeleteAgentResponse,
   SubmitOperationResponse,
   GetOperationResponse,
   VerifyOperationResponse,
@@ -16,7 +19,10 @@ import type {
   CreateExportResponse,
   ListExportsResponse,
   GetExportResponse,
+  GetMeResponse,
+  IssueApiTokenResponse,
   JWKSResponse,
+  HealthResponse,
   AuthRegisterResponse,
   AuthLoginResponse,
   ErrorResponse,
@@ -120,6 +126,18 @@ export class ElydoraClient {
   }
 
   // -------------------------------------------------------------------------
+  // Auth (instance methods — require token)
+  // -------------------------------------------------------------------------
+
+  async getMe(): Promise<GetMeResponse> {
+    return this.request<GetMeResponse>('GET', '/v1/auth/me');
+  }
+
+  async issueApiToken(ttlSeconds?: number | null): Promise<IssueApiTokenResponse> {
+    return this.request<IssueApiTokenResponse>('POST', '/v1/auth/token', { ttl_seconds: ttlSeconds ?? null });
+  }
+
+  // -------------------------------------------------------------------------
   // Agent management
   // -------------------------------------------------------------------------
 
@@ -133,6 +151,18 @@ export class ElydoraClient {
 
   async freezeAgent(agentId: string, reason: string): Promise<void> {
     await this.request<unknown>('POST', `/v1/agents/${encodeURIComponent(agentId)}/freeze`, { reason });
+  }
+
+  async listAgents(): Promise<ListAgentsResponse> {
+    return this.request<ListAgentsResponse>('GET', '/v1/agents');
+  }
+
+  async unfreezeAgent(agentId: string, reason: string): Promise<UnfreezeAgentResponse> {
+    return this.request<UnfreezeAgentResponse>('POST', `/v1/agents/${encodeURIComponent(agentId)}/unfreeze`, { reason });
+  }
+
+  async deleteAgent(agentId: string): Promise<DeleteAgentResponse> {
+    return this.request<DeleteAgentResponse>('DELETE', `/v1/agents/${encodeURIComponent(agentId)}`);
   }
 
   async revokeKey(agentId: string, kid: string, reason: string): Promise<void> {
@@ -250,6 +280,23 @@ export class ElydoraClient {
     return this.request<GetExportResponse>('GET', `/v1/exports/${encodeURIComponent(exportId)}`);
   }
 
+  async downloadExport(exportId: string): Promise<ArrayBuffer> {
+    const url = `${this.baseUrl}/v1/exports/${encodeURIComponent(exportId)}/download`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const res = await fetch(url, { method: 'GET', headers });
+
+    if (!res.ok) {
+      return handleResponse<never>(res);
+    }
+
+    return res.arrayBuffer();
+  }
+
   // -------------------------------------------------------------------------
   // JWKS
   // -------------------------------------------------------------------------
@@ -261,6 +308,19 @@ export class ElydoraClient {
       headers: { 'Accept': 'application/json' },
     });
     return handleResponse<JWKSResponse>(res);
+  }
+
+  // -------------------------------------------------------------------------
+  // Health
+  // -------------------------------------------------------------------------
+
+  async health(): Promise<HealthResponse> {
+    const url = `${this.baseUrl}/v1/health`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    return handleResponse<HealthResponse>(res);
   }
 
   // -------------------------------------------------------------------------
