@@ -1,14 +1,13 @@
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import type { AgentPlugin, InstallConfig, PluginStatus } from './base.js';
 import { SUPPORTED_AGENTS } from './registry.js';
 
-const AGENT_KEY = 'gemini';
+const AGENT_KEY = 'copilot';
 const entry = SUPPORTED_AGENTS.get(AGENT_KEY)!;
 
 function resolveConfigDir(): string {
-  return entry.configDir.replace(/^~/, os.homedir());
+  return path.join(process.cwd(), entry.configDir);
 }
 
 function resolveConfigPath(): string {
@@ -28,23 +27,20 @@ function isElydoraCommand(cmd: string, agentId?: string): boolean {
 }
 
 function filterElydoraEntries(arr: Array<Record<string, unknown>>, agentId?: string): Array<Record<string, unknown>> {
-  return arr.filter((entry) => {
-    if (Array.isArray(entry.hooks)) {
-      const cmds = entry.hooks as Array<Record<string, unknown>>;
-      return !cmds.some((h) => typeof h.command === 'string' && isElydoraCommand(h.command, agentId));
-    }
-    if (typeof entry.command === 'string') return !isElydoraCommand(entry.command, agentId);
+  return arr.filter((h) => {
+    if (typeof h.bash === 'string' && isElydoraCommand(h.bash, agentId)) return false;
+    if (typeof h.powershell === 'string' && isElydoraCommand(h.powershell, agentId)) return false;
     return true;
   });
 }
 
-export const geminiPlugin: AgentPlugin = {
+export const copilotPlugin: AgentPlugin = {
   async install(config: InstallConfig): Promise<void> {
     const configDir = resolveConfigDir();
     await fsp.mkdir(configDir, { recursive: true });
 
     const configPath = resolveConfigPath();
-    let settings: Record<string, unknown> = {};
+    let settings: Record<string, unknown> = { version: 1 };
 
     try {
       const raw = await fsp.readFile(configPath, 'utf-8');
@@ -53,30 +49,38 @@ export const geminiPlugin: AgentPlugin = {
       // Start fresh
     }
 
+    settings.version = 1;
+
     if (!settings.hooks || typeof settings.hooks !== 'object') {
       settings.hooks = {};
     }
     const hooks = settings.hooks as Record<string, unknown>;
 
-    // --- BeforeTool (guard — freeze enforcement) ---
-    if (!Array.isArray(hooks.BeforeTool)) {
-      hooks.BeforeTool = [];
+    // --- preToolUse (guard — freeze enforcement) ---
+    if (!Array.isArray(hooks.preToolUse)) {
+      hooks.preToolUse = [];
     }
-    const preFiltered = filterElydoraEntries(hooks.BeforeTool as Array<Record<string, unknown>>);
+    const preFiltered = filterElydoraEntries(hooks.preToolUse as Array<Record<string, unknown>>);
     preFiltered.push({
-      hooks: [{ type: 'command', command: buildHookCommand(config.guardScriptPath) }],
+      type: 'command',
+      bash: buildHookCommand(config.guardScriptPath),
+      powershell: buildHookCommand(config.guardScriptPath),
+      timeoutSec: 5,
     });
-    hooks.BeforeTool = preFiltered;
+    hooks.preToolUse = preFiltered;
 
-    // --- AfterTool (audit logging) ---
-    if (!Array.isArray(hooks.AfterTool)) {
-      hooks.AfterTool = [];
+    // --- postToolUse (audit logging) ---
+    if (!Array.isArray(hooks.postToolUse)) {
+      hooks.postToolUse = [];
     }
-    const postFiltered = filterElydoraEntries(hooks.AfterTool as Array<Record<string, unknown>>);
+    const postFiltered = filterElydoraEntries(hooks.postToolUse as Array<Record<string, unknown>>);
     postFiltered.push({
-      hooks: [{ type: 'command', command: buildHookCommand(config.hookScriptPath) }],
+      type: 'command',
+      bash: buildHookCommand(config.hookScriptPath),
+      powershell: buildHookCommand(config.hookScriptPath),
+      timeoutSec: 5,
     });
-    hooks.AfterTool = postFiltered;
+    hooks.postToolUse = postFiltered;
 
     settings.hooks = hooks;
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -96,11 +100,11 @@ export const geminiPlugin: AgentPlugin = {
     const hooks = settings.hooks as Record<string, unknown> | undefined;
     if (!hooks) return;
 
-    if (Array.isArray(hooks.BeforeTool)) {
-      hooks.BeforeTool = filterElydoraEntries(hooks.BeforeTool as Array<Record<string, unknown>>, agentId);
+    if (Array.isArray(hooks.preToolUse)) {
+      hooks.preToolUse = filterElydoraEntries(hooks.preToolUse as Array<Record<string, unknown>>, agentId);
     }
-    if (Array.isArray(hooks.AfterTool)) {
-      hooks.AfterTool = filterElydoraEntries(hooks.AfterTool as Array<Record<string, unknown>>, agentId);
+    if (Array.isArray(hooks.postToolUse)) {
+      hooks.postToolUse = filterElydoraEntries(hooks.postToolUse as Array<Record<string, unknown>>, agentId);
     }
 
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -116,29 +120,20 @@ export const geminiPlugin: AgentPlugin = {
       const settings = JSON.parse(raw);
       const hooks = settings.hooks as Record<string, unknown> | undefined;
       if (hooks) {
-        const checkArr = (arr: unknown) => {
-          if (!Array.isArray(arr)) return false;
-          return (arr as Array<Record<string, unknown>>).some((entry) => {
-            if (Array.isArray(entry.hooks)) {
-              return (entry.hooks as Array<Record<string, unknown>>).some(
-                (h) => typeof h.command === 'string' && h.command.includes('elydora'),
-              );
-            }
-            return typeof entry.command === 'string' && entry.command.includes('elydora');
-          });
-        };
-        hookConfigured = checkArr(hooks.BeforeTool) && checkArr(hooks.AfterTool);
+        const check = (arr: unknown) =>
+          Array.isArray(arr) && (arr as Array<Record<string, unknown>>).some(
+            (h) =>
+              (typeof h.bash === 'string' && h.bash.includes('elydora')) ||
+              (typeof h.powershell === 'string' && h.powershell.includes('elydora')),
+          );
+        hookConfigured = check(hooks.preToolUse) && check(hooks.postToolUse);
 
-        // Extract hook script path from AfterTool command
-        if (hookConfigured && Array.isArray(hooks.AfterTool)) {
-          for (const e of hooks.AfterTool as Array<Record<string, unknown>>) {
-            if (Array.isArray(e.hooks)) {
-              for (const h of e.hooks as Array<Record<string, unknown>>) {
-                const cmd = h.command as string;
-                if (cmd && cmd.includes('elydora')) {
-                  hookScriptPath = cmd.replace(/^node\s+"?/, '').replace(/"?\s*$/, '');
-                }
-              }
+        // Extract hook script path from postToolUse bash/powershell command
+        if (hookConfigured && Array.isArray(hooks.postToolUse)) {
+          for (const h of hooks.postToolUse as Array<Record<string, unknown>>) {
+            const cmd = (h.bash || h.powershell) as string;
+            if (cmd && cmd.includes('elydora')) {
+              hookScriptPath = cmd.replace(/^node\s+"?/, '').replace(/"?\s*$/, '');
             }
           }
         }

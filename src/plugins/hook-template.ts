@@ -3,7 +3,7 @@
  * inline so it has zero runtime dependency on the SDK.
  */
 
-export function generateHookScript(agentName: string): string {
+export function generateHookScript(agentName: string, agentId: string): string {
   return `#!/usr/bin/env node
 'use strict';
 
@@ -17,11 +17,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const AGENT_NAME = ${JSON.stringify(agentName)};
+const AGENT_ID = ${JSON.stringify(agentId)};
 const ELYDORA_DIR = path.join(os.homedir(), '.elydora');
-const CONFIG_PATH = path.join(ELYDORA_DIR, 'agents', AGENT_NAME + '.json');
-const KEY_PATH = path.join(ELYDORA_DIR, 'agents', AGENT_NAME + '.key');
-const CHAIN_STATE_PATH = path.join(ELYDORA_DIR, 'chain-state.json');
-const ERROR_LOG_PATH = path.join(ELYDORA_DIR, 'error.log');
+const CONFIG_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'config.json');
+const KEY_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'private.key');
+const CHAIN_STATE_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'chain-state.json');
+const ERROR_LOG_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'error.log');
 
 // ---------------------------------------------------------------------------
 // Embedded crypto (from @elydora/sdk src/crypto.ts + src/utils.ts)
@@ -302,7 +303,7 @@ main();
  * - Fails open: if the API is unreachable, tool execution is allowed
  * - If frozen: exits with code 1 to block the tool
  */
-export function generateGuardScript(agentName: string): string {
+export function generateGuardScript(agentName: string, agentId: string): string {
   return `#!/usr/bin/env node
 'use strict';
 
@@ -316,9 +317,10 @@ const path = require('node:path');
 const os = require('node:os');
 
 const AGENT_NAME = ${JSON.stringify(agentName)};
+const AGENT_ID = ${JSON.stringify(agentId)};
 const ELYDORA_DIR = path.join(os.homedir(), '.elydora');
-const CONFIG_PATH = path.join(ELYDORA_DIR, 'agents', AGENT_NAME + '.json');
-const STATUS_CACHE_PATH = path.join(ELYDORA_DIR, 'agents', AGENT_NAME + '.status.json');
+const CONFIG_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'config.json');
+const STATUS_CACHE_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'status-cache.json');
 const CACHE_TTL_MS = 60000; // 60 seconds
 
 // Discard stdin immediately so the process can exit cleanly

@@ -20,9 +20,17 @@ function buildHookCommand(scriptPath: string): string {
   return `node "${scriptPath}"`;
 }
 
-function filterElydoraEntries(arr: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+function isElydoraCommand(cmd: string, agentId?: string): boolean {
+  if (!cmd.includes('elydora')) return false;
+  if (agentId) {
+    return cmd.includes(agentId);
+  }
+  return true;
+}
+
+function filterElydoraEntries(arr: Array<Record<string, unknown>>, agentId?: string): Array<Record<string, unknown>> {
   return arr.filter(
-    (h) => typeof h.command === 'string' && !h.command.includes('elydora'),
+    (h) => typeof h.command === 'string' && !isElydoraCommand(h.command, agentId),
   );
 }
 
@@ -63,10 +71,11 @@ export const cursorPlugin: AgentPlugin = {
     hooks.postToolUse = postFiltered;
 
     settings.hooks = hooks;
+    settings.version = 1;
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
   },
 
-  async uninstall(): Promise<void> {
+  async uninstall(agentId?: string): Promise<void> {
     const configPath = resolveConfigPath();
 
     let settings: Record<string, unknown>;
@@ -81,10 +90,10 @@ export const cursorPlugin: AgentPlugin = {
     if (!hooks) return;
 
     if (Array.isArray(hooks.preToolUse)) {
-      hooks.preToolUse = filterElydoraEntries(hooks.preToolUse as Array<Record<string, unknown>>);
+      hooks.preToolUse = filterElydoraEntries(hooks.preToolUse as Array<Record<string, unknown>>, agentId);
     }
     if (Array.isArray(hooks.postToolUse)) {
-      hooks.postToolUse = filterElydoraEntries(hooks.postToolUse as Array<Record<string, unknown>>);
+      hooks.postToolUse = filterElydoraEntries(hooks.postToolUse as Array<Record<string, unknown>>, agentId);
     }
 
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -92,9 +101,9 @@ export const cursorPlugin: AgentPlugin = {
 
   async status(): Promise<PluginStatus> {
     const configPath = resolveConfigPath();
-    const hookScriptPath = path.join(os.homedir(), '.elydora', 'hooks', `${AGENT_KEY}-hook.js`);
 
     let hookConfigured = false;
+    let hookScriptPath = '';
     try {
       const raw = await fsp.readFile(configPath, 'utf-8');
       const settings = JSON.parse(raw);
@@ -105,17 +114,29 @@ export const cursorPlugin: AgentPlugin = {
             (h) => typeof h.command === 'string' && h.command.includes('elydora'),
           );
         hookConfigured = check(hooks.preToolUse) && check(hooks.postToolUse);
+
+        // Extract hook script path from postToolUse command
+        if (hookConfigured && Array.isArray(hooks.postToolUse)) {
+          for (const h of hooks.postToolUse as Array<Record<string, unknown>>) {
+            const cmd = h.command as string;
+            if (cmd && cmd.includes('elydora')) {
+              hookScriptPath = cmd.replace(/^node\s+"?/, '').replace(/"?\s*$/, '');
+            }
+          }
+        }
       }
     } catch {
       // Config not readable
     }
 
     let hookScriptExists = false;
-    try {
-      await fsp.access(hookScriptPath);
-      hookScriptExists = true;
-    } catch {
-      // File doesn't exist
+    if (hookScriptPath) {
+      try {
+        await fsp.access(hookScriptPath);
+        hookScriptExists = true;
+      } catch {
+        // File doesn't exist
+      }
     }
 
     return {

@@ -4,7 +4,7 @@ import os from 'node:os';
 import type { AgentPlugin, InstallConfig, PluginStatus } from './base.js';
 import { SUPPORTED_AGENTS } from './registry.js';
 
-const AGENT_KEY = 'gemini';
+const AGENT_KEY = 'letta';
 const entry = SUPPORTED_AGENTS.get(AGENT_KEY)!;
 
 function resolveConfigDir(): string {
@@ -33,12 +33,14 @@ function filterElydoraEntries(arr: Array<Record<string, unknown>>, agentId?: str
       const cmds = entry.hooks as Array<Record<string, unknown>>;
       return !cmds.some((h) => typeof h.command === 'string' && isElydoraCommand(h.command, agentId));
     }
-    if (typeof entry.command === 'string') return !isElydoraCommand(entry.command, agentId);
+    if (typeof entry.command === 'string') {
+      return !isElydoraCommand(entry.command, agentId);
+    }
     return true;
   });
 }
 
-export const geminiPlugin: AgentPlugin = {
+export const lettaPlugin: AgentPlugin = {
   async install(config: InstallConfig): Promise<void> {
     const configDir = resolveConfigDir();
     await fsp.mkdir(configDir, { recursive: true });
@@ -50,7 +52,7 @@ export const geminiPlugin: AgentPlugin = {
       const raw = await fsp.readFile(configPath, 'utf-8');
       settings = JSON.parse(raw);
     } catch {
-      // Start fresh
+      // File doesn't exist or isn't valid JSON — start fresh
     }
 
     if (!settings.hooks || typeof settings.hooks !== 'object') {
@@ -58,25 +60,27 @@ export const geminiPlugin: AgentPlugin = {
     }
     const hooks = settings.hooks as Record<string, unknown>;
 
-    // --- BeforeTool (guard — freeze enforcement) ---
-    if (!Array.isArray(hooks.BeforeTool)) {
-      hooks.BeforeTool = [];
+    // --- PreToolUse (guard — freeze enforcement) ---
+    if (!Array.isArray(hooks.PreToolUse)) {
+      hooks.PreToolUse = [];
     }
-    const preFiltered = filterElydoraEntries(hooks.BeforeTool as Array<Record<string, unknown>>);
+    const preFiltered = filterElydoraEntries(hooks.PreToolUse as Array<Record<string, unknown>>);
     preFiltered.push({
+      matcher: '*',
       hooks: [{ type: 'command', command: buildHookCommand(config.guardScriptPath) }],
     });
-    hooks.BeforeTool = preFiltered;
+    hooks.PreToolUse = preFiltered;
 
-    // --- AfterTool (audit logging) ---
-    if (!Array.isArray(hooks.AfterTool)) {
-      hooks.AfterTool = [];
+    // --- PostToolUse (audit logging) ---
+    if (!Array.isArray(hooks.PostToolUse)) {
+      hooks.PostToolUse = [];
     }
-    const postFiltered = filterElydoraEntries(hooks.AfterTool as Array<Record<string, unknown>>);
+    const postFiltered = filterElydoraEntries(hooks.PostToolUse as Array<Record<string, unknown>>);
     postFiltered.push({
+      matcher: '*',
       hooks: [{ type: 'command', command: buildHookCommand(config.hookScriptPath) }],
     });
-    hooks.AfterTool = postFiltered;
+    hooks.PostToolUse = postFiltered;
 
     settings.hooks = hooks;
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -90,17 +94,17 @@ export const geminiPlugin: AgentPlugin = {
       const raw = await fsp.readFile(configPath, 'utf-8');
       settings = JSON.parse(raw);
     } catch {
-      return;
+      return; // Nothing to uninstall
     }
 
     const hooks = settings.hooks as Record<string, unknown> | undefined;
     if (!hooks) return;
 
-    if (Array.isArray(hooks.BeforeTool)) {
-      hooks.BeforeTool = filterElydoraEntries(hooks.BeforeTool as Array<Record<string, unknown>>, agentId);
+    if (Array.isArray(hooks.PreToolUse)) {
+      hooks.PreToolUse = filterElydoraEntries(hooks.PreToolUse as Array<Record<string, unknown>>, agentId);
     }
-    if (Array.isArray(hooks.AfterTool)) {
-      hooks.AfterTool = filterElydoraEntries(hooks.AfterTool as Array<Record<string, unknown>>, agentId);
+    if (Array.isArray(hooks.PostToolUse)) {
+      hooks.PostToolUse = filterElydoraEntries(hooks.PostToolUse as Array<Record<string, unknown>>, agentId);
     }
 
     await fsp.writeFile(configPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
@@ -127,11 +131,11 @@ export const geminiPlugin: AgentPlugin = {
             return typeof entry.command === 'string' && entry.command.includes('elydora');
           });
         };
-        hookConfigured = checkArr(hooks.BeforeTool) && checkArr(hooks.AfterTool);
+        hookConfigured = checkArr(hooks.PreToolUse) && checkArr(hooks.PostToolUse);
 
-        // Extract hook script path from AfterTool command
-        if (hookConfigured && Array.isArray(hooks.AfterTool)) {
-          for (const e of hooks.AfterTool as Array<Record<string, unknown>>) {
+        // Extract hook script path from PostToolUse command
+        if (hookConfigured && Array.isArray(hooks.PostToolUse)) {
+          for (const e of hooks.PostToolUse as Array<Record<string, unknown>>) {
             if (Array.isArray(e.hooks)) {
               for (const h of e.hooks as Array<Record<string, unknown>>) {
                 const cmd = h.command as string;

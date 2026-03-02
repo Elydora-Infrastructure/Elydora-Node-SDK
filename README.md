@@ -68,9 +68,11 @@ npx elydora install \
 | Claude Code | `claudecode` |
 | Cursor | `cursor` |
 | Gemini CLI | `gemini` |
-| Augment Code | `augment` |
-| Kiro | `kiro` |
+| Kiro CLI | `kirocli` |
+| Kiro IDE | `kiroide` |
 | OpenCode | `opencode` |
+| Copilot CLI | `copilot` |
+| Letta Code | `letta` |
 
 ## API Reference
 

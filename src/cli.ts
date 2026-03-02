@@ -9,9 +9,11 @@ import { generateHookScript, generateGuardScript } from './plugins/hook-template
 import { claudecodePlugin } from './plugins/claudecode.js';
 import { cursorPlugin } from './plugins/cursor.js';
 import { geminiPlugin } from './plugins/gemini.js';
-import { augmentPlugin } from './plugins/augment.js';
-import { kiroPlugin } from './plugins/kiro.js';
+import { kirocliPlugin } from './plugins/kirocli.js';
+import { kiroidePlugin } from './plugins/kiroide.js';
 import { opencodePlugin } from './plugins/opencode.js';
+import { copilotPlugin } from './plugins/copilot.js';
+import { lettaPlugin } from './plugins/letta.js';
 
 const ELYDORA_DIR = path.join(os.homedir(), '.elydora');
 
@@ -19,9 +21,11 @@ const PLUGINS: ReadonlyMap<string, AgentPlugin> = new Map([
   ['claudecode', claudecodePlugin],
   ['cursor', cursorPlugin],
   ['gemini', geminiPlugin],
-  ['augment', augmentPlugin],
-  ['kiro', kiroPlugin],
+  ['kirocli', kirocliPlugin],
+  ['kiroide', kiroidePlugin],
   ['opencode', opencodePlugin],
+  ['copilot', copilotPlugin],
+  ['letta', lettaPlugin],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -38,7 +42,7 @@ function printUsage(): void {
 
 Usage:
   elydora install   --agent <name> --org_id <id> --agent_id <id> --private_key <key> --kid <kid> [--token <jwt>] [--base_url <url>]
-  elydora uninstall --agent <name>
+  elydora uninstall --agent <name> [--agent_id <id>]
   elydora status
   elydora agents
 
@@ -102,40 +106,43 @@ async function cmdInstall(args: string[]): Promise<void> {
 
   console.log(`Verifying private key... Public key: ${publicKey.slice(0, 12)}...`);
 
-  // Create ~/.elydora directory structure
-  const agentsDir = path.join(ELYDORA_DIR, 'agents');
-  const hooksDir = path.join(ELYDORA_DIR, 'hooks');
-  await fsp.mkdir(agentsDir, { recursive: true });
-  await fsp.mkdir(hooksDir, { recursive: true });
+  // Create ~/.elydora/{agentId}/ directory
+  const agentDir = path.join(ELYDORA_DIR, agentId);
+  await fsp.mkdir(agentDir, { recursive: true });
 
   // Write agent config
-  const agentConfigPath = path.join(agentsDir, `${agentName}.json`);
+  const agentConfigPath = path.join(agentDir, 'config.json');
   const agentConfig = {
     org_id: orgId,
     agent_id: agentId,
     kid,
     base_url: baseUrl,
     ...(token ? { token } : {}),
+    agent_name: agentName,
   };
   await fsp.writeFile(agentConfigPath, JSON.stringify(agentConfig, null, 2) + '\n', 'utf-8');
-  await fsp.chmod(agentConfigPath, 0o600);
+  if (process.platform !== 'win32') {
+    await fsp.chmod(agentConfigPath, 0o600);
+  }
   console.log(`  Agent config: ${agentConfigPath}`);
 
   // Write private key (chmod 600)
-  const keyPath = path.join(agentsDir, `${agentName}.key`);
+  const keyPath = path.join(agentDir, 'private.key');
   await fsp.writeFile(keyPath, privateKey, { encoding: 'utf-8', mode: 0o600 });
-  await fsp.chmod(keyPath, 0o600);
+  if (process.platform !== 'win32') {
+    await fsp.chmod(keyPath, 0o600);
+  }
   console.log(`  Private key:  ${keyPath}`);
 
   // Generate and write hook script (PostToolUse — audit logging)
-  const hookScriptPath = path.join(hooksDir, `${agentName}-hook.js`);
-  const hookScript = generateHookScript(agentName);
+  const hookScriptPath = path.join(agentDir, 'hook.js');
+  const hookScript = generateHookScript(agentName, agentId);
   await fsp.writeFile(hookScriptPath, hookScript, { encoding: 'utf-8', mode: 0o755 });
   console.log(`  Hook script:  ${hookScriptPath}`);
 
   // Generate and write guard script (PreToolUse — freeze enforcement)
-  const guardScriptPath = path.join(hooksDir, `${agentName}-guard.js`);
-  const guardScript = generateGuardScript(agentName);
+  const guardScriptPath = path.join(agentDir, 'guard.js');
+  const guardScript = generateGuardScript(agentName, agentId);
   await fsp.writeFile(guardScriptPath, guardScript, { encoding: 'utf-8', mode: 0o755 });
   console.log(`  Guard script: ${guardScriptPath}`);
 
@@ -164,6 +171,7 @@ async function cmdUninstall(args: string[]): Promise<void> {
     args,
     options: {
       agent: { type: 'string' },
+      agent_id: { type: 'string' },
     },
     strict: true,
   });
@@ -174,25 +182,49 @@ async function cmdUninstall(args: string[]): Promise<void> {
     die(`Unknown agent "${agentName}". Supported: ${Array.from(SUPPORTED_AGENTS.keys()).join(', ')}`);
   }
 
+  let agentId = values.agent_id;
+
+  // If --agent_id not provided, scan ~/.elydora/*/config.json for matching agent_name
+  if (!agentId) {
+    try {
+      const entries = await fsp.readdir(ELYDORA_DIR, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const cfgPath = path.join(ELYDORA_DIR, entry.name, 'config.json');
+        try {
+          const raw = await fsp.readFile(cfgPath, 'utf-8');
+          const cfg = JSON.parse(raw);
+          if (cfg.agent_name === agentName) {
+            agentId = entry.name;
+            break;
+          }
+        } catch {
+          // Skip unreadable configs
+        }
+      }
+    } catch {
+      // ELYDORA_DIR may not exist
+    }
+    if (!agentId) {
+      die(`No installed agent found for "${agentName}". Use --agent_id to specify explicitly.`);
+    }
+  }
+
   const plugin = PLUGINS.get(agentName)!;
-  const entry = SUPPORTED_AGENTS.get(agentName)!;
+  const registryEntry = SUPPORTED_AGENTS.get(agentName)!;
 
   // Uninstall agent-specific config
-  await plugin.uninstall();
+  await plugin.uninstall(agentId);
 
-  // Remove hook and guard scripts
-  const hookScriptPath = path.join(ELYDORA_DIR, 'hooks', `${agentName}-hook.js`);
-  const guardScriptPath = path.join(ELYDORA_DIR, 'hooks', `${agentName}-guard.js`);
-  try { await fsp.unlink(hookScriptPath); } catch { /* Already removed */ }
-  try { await fsp.unlink(guardScriptPath); } catch { /* Already removed */ }
+  // Remove entire agent directory
+  const agentDir = path.join(ELYDORA_DIR, agentId);
+  try {
+    await fsp.rm(agentDir, { recursive: true, force: true });
+  } catch {
+    // Already removed
+  }
 
-  // Remove agent config and key
-  const agentConfigPath = path.join(ELYDORA_DIR, 'agents', `${agentName}.json`);
-  const keyPath = path.join(ELYDORA_DIR, 'agents', `${agentName}.key`);
-  try { await fsp.unlink(agentConfigPath); } catch { /* */ }
-  try { await fsp.unlink(keyPath); } catch { /* */ }
-
-  console.log(`Elydora audit hook uninstalled for ${entry.name}.`);
+  console.log(`Elydora audit hook uninstalled for ${registryEntry.name}.`);
 }
 
 async function cmdStatus(): Promise<void> {
@@ -200,15 +232,42 @@ async function cmdStatus(): Promise<void> {
 
   let anyInstalled = false;
 
+  // Scan ~/.elydora/*/config.json to discover installed agents
+  const installedAgents: Array<{ agentId: string; agentName: string; configPath: string }> = [];
+  try {
+    const entries = await fsp.readdir(ELYDORA_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const cfgPath = path.join(ELYDORA_DIR, entry.name, 'config.json');
+      try {
+        const raw = await fsp.readFile(cfgPath, 'utf-8');
+        const cfg = JSON.parse(raw);
+        if (cfg.agent_name && cfg.agent_id) {
+          installedAgents.push({ agentId: entry.name, agentName: cfg.agent_name, configPath: cfgPath });
+        }
+      } catch {
+        // Skip unreadable configs
+      }
+    }
+  } catch {
+    // ELYDORA_DIR may not exist
+  }
+
   for (const [name, plugin] of PLUGINS) {
     const st = await plugin.status();
     const statusIcon = st.installed ? '[installed]' : '[not installed]';
+
+    // Find matching installed agent(s) for this plugin
+    const matching = installedAgents.filter((a) => a.agentName === name);
 
     console.log(`  ${st.displayName} (${name}) ${statusIcon}`);
     if (st.installed || st.hookConfigured || st.hookScriptExists) {
       console.log(`    Hook config: ${st.hookConfigured ? 'yes' : 'no'}`);
       console.log(`    Hook script: ${st.hookScriptExists ? 'yes' : 'no'}`);
       console.log(`    Config path: ${st.configPath}`);
+      for (const m of matching) {
+        console.log(`    Agent ID:    ${m.agentId}`);
+      }
     }
 
     if (st.installed) anyInstalled = true;

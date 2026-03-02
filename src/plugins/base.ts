@@ -21,6 +21,6 @@ export interface PluginStatus {
 
 export interface AgentPlugin {
   install(config: InstallConfig): Promise<void>;
-  uninstall(): Promise<void>;
+  uninstall(agentId?: string): Promise<void>;
   status(): Promise<PluginStatus>;
 }
