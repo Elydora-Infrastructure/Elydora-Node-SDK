@@ -60,7 +60,7 @@ export class ElydoraClient {
     this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.ttlMs = config.ttlMs ?? DEFAULT_TTL_MS;
     this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this.kid = config.kid ?? this.agentId + '-key-v1';
+    this.kid = config.kid ?? this.agentId + '-key-1';
     this.prevChainHash = ZERO_CHAIN_HASH;
   }
 
