@@ -2,10 +2,13 @@ import type {
   ElydoraClientConfig,
   CreateOperationParams,
   EOR,
+  IntegrationType,
   RegisterAgentRequest,
   RegisterAgentResponse,
   GetAgentResponse,
   ListAgentsResponse,
+  UpdateAgentResponse,
+  FreezeAgentResponse,
   UnfreezeAgentResponse,
   DeleteAgentResponse,
   SubmitOperationResponse,
@@ -24,6 +27,11 @@ import type {
   RotateApiTokenResponse,
   JWKSResponse,
   HealthResponse,
+  DeepHealthResponse,
+  ListWebhooksResponse,
+  RegisterWebhookResponse,
+  ListMembersResponse,
+  ListAdminEventsResponse,
   AuthRegisterResponse,
   AuthLoginResponse,
   ErrorResponse,
@@ -90,6 +98,9 @@ export class ElydoraClient {
   // Auth (static methods — no instance needed)
   // -------------------------------------------------------------------------
 
+  /**
+   * @deprecated Use Better Auth endpoints directly. See docs.
+   */
   static async register(
     baseUrl: string,
     email: string,
@@ -111,6 +122,9 @@ export class ElydoraClient {
     return handleResponse<AuthRegisterResponse>(res);
   }
 
+  /**
+   * @deprecated Use Better Auth endpoints directly. See docs.
+   */
   static async login(
     baseUrl: string,
     email: string,
@@ -154,8 +168,12 @@ export class ElydoraClient {
     return this.request<GetAgentResponse>('GET', `/v1/agents/${encodeURIComponent(agentId)}`);
   }
 
-  async freezeAgent(agentId: string, reason: string): Promise<void> {
-    await this.request<unknown>('POST', `/v1/agents/${encodeURIComponent(agentId)}/freeze`, { reason });
+  async updateAgent(agentId: string, integType: IntegrationType): Promise<UpdateAgentResponse> {
+    return this.request<UpdateAgentResponse>('PATCH', `/v1/agents/${encodeURIComponent(agentId)}`, { integration_type: integType });
+  }
+
+  async freezeAgent(agentId: string, reason: string): Promise<FreezeAgentResponse> {
+    return this.request<FreezeAgentResponse>('POST', `/v1/agents/${encodeURIComponent(agentId)}/freeze`, { reason });
   }
 
   async listAgents(): Promise<ListAgentsResponse> {
@@ -326,6 +344,45 @@ export class ElydoraClient {
       headers: { 'Accept': 'application/json' },
     });
     return handleResponse<HealthResponse>(res);
+  }
+
+  async deepHealth(): Promise<DeepHealthResponse> {
+    const url = `${this.baseUrl}/v1/health/deep`;
+    const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    return handleResponse<DeepHealthResponse>(res);
+  }
+
+  // -------------------------------------------------------------------------
+  // Webhooks
+  // -------------------------------------------------------------------------
+
+  async listWebhooks(): Promise<ListWebhooksResponse> {
+    return this.request<ListWebhooksResponse>('GET', '/v1/webhooks');
+  }
+
+  async registerWebhook(endpointUrl: string, events: string[], secret: string): Promise<RegisterWebhookResponse> {
+    return this.request<RegisterWebhookResponse>('POST', '/v1/webhooks', { endpoint_url: endpointUrl, events, secret });
+  }
+
+  async deleteWebhook(webhookId: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/v1/webhooks/${encodeURIComponent(webhookId)}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Members
+  // -------------------------------------------------------------------------
+
+  async listMembers(): Promise<ListMembersResponse> {
+    return this.request<ListMembersResponse>('GET', '/v1/members');
+  }
+
+  // -------------------------------------------------------------------------
+  // Admin events
+  // -------------------------------------------------------------------------
+
+  async listAdminEvents(limit?: number): Promise<ListAdminEventsResponse> {
+    const query = limit ? `?limit=${limit}` : '';
+    return this.request<ListAdminEventsResponse>('GET', `/v1/admin/events${query}`);
   }
 
   // -------------------------------------------------------------------------

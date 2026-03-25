@@ -11,6 +11,16 @@ export type RbacRole =
   | 'compliance_auditor'
   | 'readonly_investigator'
   | 'integration_engineer';
+export type IntegrationType =
+  | 'claudecode' | 'cursor' | 'gemini' | 'kirocli' | 'kiroide'
+  | 'opencode' | 'copilot' | 'letta' | 'codex' | 'kimi'
+  | 'enterprise' | 'gui' | 'sdk' | 'other';
+export type AdminAction =
+  | 'agent.register' | 'agent.update' | 'agent.freeze' | 'agent.unfreeze'
+  | 'agent.revoke' | 'agent.delete' | 'key.revoke' | 'export.create'
+  | 'org.create' | 'org.update'
+  | 'member.invite' | 'member.remove' | 'member.role_change'
+  | 'agent.assign' | 'agent.unassign';
 export type ErrorCode =
   | 'INVALID_SIGNATURE'
   | 'UNKNOWN_AGENT'
@@ -36,6 +46,7 @@ export interface Agent {
   readonly org_id: string;
   readonly display_name: string;
   readonly responsible_entity: string;
+  readonly integration_type: IntegrationType;
   readonly status: AgentStatus;
   readonly created_at: number;
   readonly updated_at: number;
@@ -92,8 +103,30 @@ export interface Epoch {
 export interface Organization {
   readonly org_id: string;
   readonly name: string;
+  readonly description: string;
+  readonly ba_org_id: string | null;
   readonly created_at: number;
   readonly updated_at: number;
+}
+
+export interface AdminEvent {
+  readonly event_id: string;
+  readonly org_id: string;
+  readonly actor: string;
+  readonly action: string;
+  readonly target_type: string;
+  readonly target_id: string;
+  readonly details: string | null;
+  readonly created_at: number;
+}
+
+export interface AgentAssignment {
+  readonly id: string;
+  readonly agent_id: string;
+  readonly user_id: string;
+  readonly org_id: string;
+  readonly assigned_by: string;
+  readonly created_at: number;
 }
 
 export interface User {
@@ -219,6 +252,8 @@ export interface GetEpochResponse {
   readonly epoch: Epoch;
   readonly anchor?: {
     readonly tsa_token?: string;
+    readonly tsa_url?: string;
+    readonly anchored_at?: number;
   };
 }
 
@@ -251,12 +286,64 @@ export interface ListAgentsResponse {
   readonly agents: Agent[];
 }
 
+export interface UpdateAgentRequest {
+  readonly integration_type: IntegrationType;
+}
+
+export interface UpdateAgentResponse {
+  readonly agent: Agent;
+}
+
+export interface FreezeAgentResponse {
+  readonly agent: Agent;
+  readonly previous_status: AgentStatus;
+}
+
 export interface UnfreezeAgentResponse {
   readonly agent: Agent;
+  readonly previous_status: AgentStatus;
 }
 
 export interface DeleteAgentResponse {
   readonly deleted: boolean;
+}
+
+export interface ListWebhooksResponse {
+  readonly webhooks: unknown[];
+}
+
+export interface RegisterWebhookResponse {
+  readonly webhook_id: string;
+  readonly endpoint_url: string;
+  readonly events: string[];
+  readonly created_at: number;
+}
+
+export interface ListMembersResponse {
+  readonly members: {
+    readonly member_id: string;
+    readonly user_id: string;
+    readonly role: string;
+    readonly joined_at: string;
+    readonly email: string;
+    readonly display_name: string;
+  }[];
+}
+
+export interface ListAdminEventsResponse {
+  readonly events: AdminEvent[];
+}
+
+export interface DeepHealthResponse {
+  readonly status: 'healthy' | 'degraded';
+  readonly version: string;
+  readonly protocol_version: string;
+  readonly timestamp: number;
+  readonly dependencies: {
+    readonly d1: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
+    readonly r2: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
+    readonly kv: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
+  };
 }
 
 export interface GetMeResponse {
