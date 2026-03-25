@@ -62,6 +62,7 @@ export type {
   ListExportsResponse,
   GetMeResponse,
   IssueApiTokenResponse,
+  RotateApiTokenResponse,
   JWK,
   JWKSResponse,
   HealthResponse,

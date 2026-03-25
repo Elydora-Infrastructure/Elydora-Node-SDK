@@ -266,6 +266,14 @@ export interface GetMeResponse {
 export interface IssueApiTokenResponse {
   readonly token: string;
   readonly expires_at: number | null;
+  readonly token_id: string;
+}
+
+export interface RotateApiTokenResponse {
+  readonly token: string;
+  readonly expires_at: number | null;
+  readonly token_id: string;
+  readonly previous_token_grace_until: number;
 }
 
 export interface HealthResponse {

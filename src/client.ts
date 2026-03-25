@@ -21,6 +21,7 @@ import type {
   GetExportResponse,
   GetMeResponse,
   IssueApiTokenResponse,
+  RotateApiTokenResponse,
   JWKSResponse,
   HealthResponse,
   AuthRegisterResponse,
@@ -137,6 +138,10 @@ export class ElydoraClient {
     return this.request<IssueApiTokenResponse>('POST', '/v1/auth/token', { ttl_seconds: ttlSeconds ?? null });
   }
 
+  async rotateApiToken(): Promise<RotateApiTokenResponse> {
+    return this.request<RotateApiTokenResponse>('POST', '/v1/auth/rotate', {});
+  }
+
   // -------------------------------------------------------------------------
   // Agent management
   // -------------------------------------------------------------------------
@@ -241,7 +246,7 @@ export class ElydoraClient {
   }
 
   async verifyOperation(operationId: string): Promise<VerifyOperationResponse> {
-    return this.request<VerifyOperationResponse>('POST', `/v1/operations/${encodeURIComponent(operationId)}/verify`);
+    return this.request<VerifyOperationResponse>('POST', `/v1/operations/${encodeURIComponent(operationId)}/verify`, {});
   }
 
   // -------------------------------------------------------------------------
