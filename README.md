@@ -93,10 +93,10 @@ const client = new ElydoraClient({
 ### Authentication
 
 ```typescript
-// Register a new user and organization
+// Register a new user and organization (returns session token)
 const reg = await ElydoraClient.register(baseUrl, email, password, displayName?, orgName?);
 
-// Login and receive a JWT
+// Login and receive a session token
 const auth = await ElydoraClient.login(baseUrl, email, password);
 
 // Set token on client

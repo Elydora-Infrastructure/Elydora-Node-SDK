@@ -66,7 +66,7 @@ export class ElydoraClient {
   }
 
   /**
-   * Set the JWT token used for authenticated API calls.
+   * Set the API token used for authenticated API calls.
    */
   setToken(token: string): void {
     this.token = token;
