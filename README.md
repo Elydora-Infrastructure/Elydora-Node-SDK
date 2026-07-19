@@ -66,6 +66,7 @@ npx elydora install \
 | Agent | Key |
 |-------|-----|
 | Claude Code | `claudecode` |
+| OpenAI Codex | `codex` |
 | Cursor | `cursor` |
 | Gemini CLI | `gemini` |
 | Kiro CLI | `kirocli` |
@@ -73,6 +74,8 @@ npx elydora install \
 | OpenCode | `opencode` |
 | Copilot CLI | `copilot` |
 | Letta Code | `letta` |
+
+Codex performs a one-time trust review for user hooks. Run `/hooks` in Codex after installation and trust the Elydora `PreToolUse` and `PostToolUse` definitions.
 
 ## API Reference
 
