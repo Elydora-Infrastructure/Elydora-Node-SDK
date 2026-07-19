@@ -1,5 +1,6 @@
 export { ElydoraClient } from './client.js';
 export { ElydoraError } from './errors.js';
+export { INTEGRATION_TYPES } from './types.js';
 
 export {
   jcsCanonicalise,

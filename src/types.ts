@@ -11,10 +11,28 @@ export type RbacRole =
   | 'compliance_auditor'
   | 'readonly_investigator'
   | 'integration_engineer';
-export type IntegrationType =
-  | 'claudecode' | 'cursor' | 'gemini' | 'kirocli' | 'kiroide'
-  | 'opencode' | 'copilot' | 'letta' | 'codex' | 'kimi'
-  | 'enterprise' | 'gui' | 'sdk' | 'other';
+export const INTEGRATION_TYPES = [
+  'augment',
+  'claudecode',
+  'cline',
+  'codex',
+  'copilot',
+  'cursor',
+  'droid',
+  'gemini',
+  'grok',
+  'kimi',
+  'kirocli',
+  'kiroide',
+  'letta',
+  'opencode',
+  'qwen',
+  'enterprise',
+  'gui',
+  'sdk',
+  'other',
+] as const;
+export type IntegrationType = (typeof INTEGRATION_TYPES)[number];
 export type AdminAction =
   | 'agent.register' | 'agent.update' | 'agent.freeze' | 'agent.unfreeze'
   | 'agent.revoke' | 'agent.delete' | 'key.revoke' | 'export.create'
@@ -193,6 +211,7 @@ export interface EAR {
 
 export interface RegisterAgentRequest {
   readonly agent_id: string;
+  readonly integration_type: IntegrationType;
   readonly display_name?: string;
   readonly responsible_entity?: string;
   readonly keys: ReadonlyArray<{

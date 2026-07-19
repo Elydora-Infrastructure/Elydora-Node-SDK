@@ -37,6 +37,7 @@ import type {
   ErrorResponse,
 } from './types.js';
 import { ElydoraError } from './errors.js';
+import { assertIntegrationType } from './integration-types.js';
 import {
   jcsCanonicalise,
   computePayloadHash,
@@ -161,6 +162,7 @@ export class ElydoraClient {
   // -------------------------------------------------------------------------
 
   async registerAgent(request: RegisterAgentRequest): Promise<RegisterAgentResponse> {
+    assertIntegrationType(request?.integration_type);
     return this.request<RegisterAgentResponse>('POST', '/v1/agents/register', request);
   }
 
@@ -169,6 +171,7 @@ export class ElydoraClient {
   }
 
   async updateAgent(agentId: string, integType: IntegrationType): Promise<UpdateAgentResponse> {
+    assertIntegrationType(integType);
     return this.request<UpdateAgentResponse>('PATCH', `/v1/agents/${encodeURIComponent(agentId)}`, { integration_type: integType });
   }
 
