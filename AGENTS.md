@@ -23,6 +23,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Report installation as healthy only when a complete hook contract references both generated runtime scripts and both scripts exist.
 - Model stable, legacy, and early-access hook generations as explicit contracts. Keep their activation requirements visible in CLI output and README guidance.
 - Keep Grok Build writes inside its native global `$GROK_HOME/hooks/*.json` contract. Treat Claude Code and Cursor compatibility files plus project `.grok/hooks` as read-only integration sources.
+- Write Auggie hooks only to `~/.augment/settings.json`; keep system and workspace settings read-only. Generate `.cmd` wrappers on Windows and `.sh` wrappers on Unix because Auggie dispatches supported script paths, and express hook timeouts in milliseconds.
 
 ## Code Quality
 
