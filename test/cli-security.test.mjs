@@ -102,6 +102,38 @@ test('CLI rejects legacy secret arguments before writing files', async () => {
   }
 });
 
+test('CLI rejects agent IDs that escape the credential directory', async () => {
+  const invalidAgentIds = [
+    '../escape',
+    '..\\escape',
+    'C:escape',
+    'agent.',
+    'agent ',
+    'CON',
+    'COM¹.log',
+    '.',
+    '..',
+  ];
+  for (const agentId of invalidAgentIds) {
+    const homeDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-node-cli-'));
+    try {
+      const result = await runCli([
+        'install',
+        '--agent', 'opencode',
+        '--org_id', 'org-1',
+        '--agent_id', agentId,
+        '--kid', 'key-1',
+      ], homeDir);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /(Invalid agent ID for local storage|Agent ID escapes)/);
+      await assert.rejects(stat(path.join(homeDir, '.elydora')), { code: 'ENOENT' });
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('CLI installs from owner-only files and protects persisted credentials', async () => {
   const homeDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-node-cli-'));
   const privateKeyFile = path.join(homeDir, 'private-key');

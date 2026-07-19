@@ -4,7 +4,11 @@ import path from 'node:path';
 import os from 'node:os';
 import { resolveInstallSecrets } from './cli-secrets.js';
 import { derivePublicKey } from './crypto.js';
-import { ensurePrivateDirectory, writePrivateFile } from './secure-files.js';
+import {
+  ensurePrivateDirectory,
+  resolvePrivateChildDirectory,
+  writePrivateFile,
+} from './secure-files.js';
 import { SUPPORTED_AGENTS } from './plugins/registry.js';
 import type { AgentPlugin, InstallConfig } from './plugins/base.js';
 import { generateHookScript, generateGuardScript } from './plugins/hook-template.js';
@@ -102,6 +106,7 @@ async function cmdInstall(args: string[]): Promise<void> {
 
   const agentId = values.agent_id;
   if (!agentId) die('--agent_id is required');
+  const agentDir = resolvePrivateChildDirectory(ELYDORA_DIR, agentId);
 
   const kid = values.kid;
   if (!kid) die('--kid is required');
@@ -123,7 +128,6 @@ async function cmdInstall(args: string[]): Promise<void> {
   console.log(`Verifying private key... Public key: ${publicKey.slice(0, 12)}...`);
 
   // Create ~/.elydora/{agentId}/ directory
-  const agentDir = path.join(ELYDORA_DIR, agentId);
   await ensurePrivateDirectory(ELYDORA_DIR);
   await ensurePrivateDirectory(agentDir);
 
@@ -194,6 +198,7 @@ async function cmdUninstall(args: string[]): Promise<void> {
   }
 
   let agentId = values.agent_id;
+  if (agentId) resolvePrivateChildDirectory(ELYDORA_DIR, agentId);
 
   // If --agent_id not provided, scan ~/.elydora/*/config.json for matching agent_name
   if (!agentId) {
@@ -228,12 +233,8 @@ async function cmdUninstall(args: string[]): Promise<void> {
   await plugin.uninstall(agentId);
 
   // Remove entire agent directory
-  const agentDir = path.join(ELYDORA_DIR, agentId);
-  try {
-    await fsp.rm(agentDir, { recursive: true, force: true });
-  } catch {
-    // Already removed
-  }
+  const agentDir = resolvePrivateChildDirectory(ELYDORA_DIR, agentId);
+  await fsp.rm(agentDir, { recursive: true, force: true });
 
   console.log(`Elydora audit hook uninstalled for ${registryEntry.name}.`);
 }
