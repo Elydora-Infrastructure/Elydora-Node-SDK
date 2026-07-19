@@ -6,8 +6,8 @@ import { resolveInstallSecrets } from './cli-secrets.js';
 import { derivePublicKey } from './crypto.js';
 import {
   ensurePrivateDirectory,
-  isMissingPath,
   requirePhysicalDirectory,
+  requirePhysicalFile,
   resolvePrivateChildDirectory,
 } from './runtime-paths.js';
 import { writePrivateFile } from './secure-files.js';
@@ -74,11 +74,11 @@ async function readInstalledAgent(agentId: string): Promise<InstalledAgent | und
   if (!(await requirePhysicalDirectory(agentDirectory))) return undefined;
 
   const configPath = path.join(agentDirectory, 'config.json');
+  if (!(await requirePhysicalFile(configPath))) return undefined;
   let raw: string;
   try {
     raw = await fsp.readFile(configPath, 'utf-8');
   } catch (error) {
-    if (isMissingPath(error)) return undefined;
     throw new Error(`Could not read agent config: ${configPath}`, { cause: error });
   }
 

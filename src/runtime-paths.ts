@@ -30,6 +30,20 @@ export async function requirePhysicalDirectory(directory: string): Promise<boole
   return true;
 }
 
+export async function requirePhysicalFile(filePath: string): Promise<boolean> {
+  let metadata;
+  try {
+    metadata = await fsp.lstat(filePath);
+  } catch (error) {
+    if (isMissingPath(error)) return false;
+    throw new Error(`Could not inspect agent runtime file: ${filePath}`, { cause: error });
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink()) {
+    throw new Error(`Agent runtime config is not a physical file: ${filePath}`);
+  }
+  return true;
+}
+
 export function resolvePrivateChildDirectory(root: string, childName: string): string {
   const isWindowsDeviceName = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(childName);
   if (

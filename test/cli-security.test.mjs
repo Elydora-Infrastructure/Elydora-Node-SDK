@@ -219,6 +219,35 @@ test('status surfaces malformed runtime config', async () => {
   }
 });
 
+test('status rejects symbolic-link runtime configs', async (t) => {
+  const homeDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-node-cli-'));
+  const targetDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-node-target-'));
+  const runtimeDir = path.join(homeDir, '.elydora', 'agent-1');
+  const targetConfig = path.join(targetDir, 'config.json');
+  try {
+    await mkdir(runtimeDir, { recursive: true });
+    await writeFile(
+      targetConfig,
+      JSON.stringify({ agent_name: 'opencode', agent_id: 'agent-1' }),
+      'utf-8',
+    );
+    try {
+      await symlink(targetConfig, path.join(runtimeDir, 'config.json'), 'file');
+    } catch (error) {
+      t.skip(`File symbolic links are unavailable: ${error.message}`);
+      return;
+    }
+
+    const result = await runCli(['status'], homeDir);
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /runtime config is not a physical file/);
+  } finally {
+    await rm(homeDir, { recursive: true, force: true });
+    await rm(targetDir, { recursive: true, force: true });
+  }
+});
+
 test('CLI installs from owner-only files and protects persisted credentials', async () => {
   const homeDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-node-cli-'));
   const privateKeyFile = path.join(homeDir, 'private-key');
