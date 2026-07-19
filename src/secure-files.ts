@@ -26,6 +26,7 @@ export function resolvePrivateChildDirectory(root: string, childName: string): s
     || childName.includes('\\')
     || childName === '.'
     || childName === '..'
+    || childName.startsWith(' ')
     || childName.endsWith('.')
     || childName.endsWith(' ')
     || isWindowsDeviceName

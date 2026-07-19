@@ -109,6 +109,7 @@ test('CLI rejects agent IDs that escape the credential directory', async () => {
     'C:escape',
     'agent.',
     'agent ',
+    ' agent',
     'CON',
     'COM¹.log',
     '.',
