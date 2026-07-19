@@ -224,6 +224,114 @@ test('Codex status requires both runtime scripts and uninstall preserves other h
   }
 });
 
+test('Codex install preserves user handlers that reuse Elydora status text', async () => {
+  const userGuard = {
+    type: 'command',
+    command: 'user-guard',
+    statusMessage: 'Checking Elydora agent state',
+  };
+  const userAudit = {
+    type: 'command',
+    command: 'user-audit',
+    statusMessage: 'Recording Elydora tool use',
+  };
+  const fixture = await createFixture({ existingSettings: {
+    hooks: {
+      PreToolUse: [{ matcher: 'Bash', hooks: [userGuard] }],
+      PostToolUse: [{ matcher: 'Bash', hooks: [userAudit] }],
+    },
+  } });
+  try {
+    assert.equal(fixture.installResult.code, 0, fixture.installResult.stderr);
+    const settings = JSON.parse(await readFile(fixture.configPath, 'utf-8'));
+    assert.deepEqual(settings.hooks.PreToolUse[0].hooks[0], userGuard);
+    assert.deepEqual(settings.hooks.PostToolUse[0].hooks[0], userAudit);
+    assert.equal(settings.hooks.PreToolUse.length, 2);
+    assert.equal(settings.hooks.PostToolUse.length, 2);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('Codex install rejects missing runtimes before writing hooks config', async () => {
+  const homeDir = await mkdtemp(path.join(os.tmpdir(), 'elydora-codex-missing-runtime-'));
+  const agentDir = path.join(homeDir, '.elydora', 'agent-1');
+  const configPath = path.join(homeDir, '.codex', 'hooks.json');
+  try {
+    const install = await runPlugin(homeDir, 'install', {
+      agentName: 'codex',
+      agentId: 'agent-1',
+      baseUrl: 'https://api.elydora.com',
+      guardScriptPath: path.join(agentDir, 'guard.js'),
+      hookScriptPath: path.join(agentDir, 'hook.js'),
+    });
+    assert.equal(install.code, 1);
+    assert.match(install.stderr, /runtime is missing/i);
+    await assert.rejects(readFile(configPath), { code: 'ENOENT' });
+  } finally {
+    await rm(homeDir, { recursive: true, force: true });
+  }
+});
+
+test('Codex status surfaces malformed referenced runtime metadata', async () => {
+  const fixture = await createFixture();
+  try {
+    assert.equal(fixture.installResult.code, 0, fixture.installResult.stderr);
+    await writeFile(path.join(fixture.agentDir, 'config.json'), '{ malformed');
+    const status = await runPlugin(fixture.homeDir, 'status', null);
+    assert.equal(status.code, 1);
+    assert.match(status.stderr, /parse Elydora runtime config/i);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('Codex status surfaces malformed hook matcher groups', async () => {
+  const fixture = await createFixture();
+  try {
+    assert.equal(fixture.installResult.code, 0, fixture.installResult.stderr);
+    const settings = JSON.parse(await readFile(fixture.configPath, 'utf-8'));
+    settings.hooks.PreToolUse[0].hooks = null;
+    await writeFile(fixture.configPath, JSON.stringify(settings, null, 2));
+    const status = await runPlugin(fixture.homeDir, 'status', null);
+    assert.equal(status.code, 1);
+    assert.match(status.stderr, /matcher group must contain a hooks array/i);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('Codex uninstall removes a hooks config owned entirely by Elydora', async () => {
+  const fixture = await createFixture();
+  try {
+    assert.equal(fixture.installResult.code, 0, fixture.installResult.stderr);
+    const uninstall = await runPlugin(fixture.homeDir, 'uninstall', 'agent-1');
+    assert.equal(uninstall.code, 0, uninstall.stderr);
+    await assert.rejects(readFile(fixture.configPath), { code: 'ENOENT' });
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('Codex install preserves invalid contract shapes before writing', async () => {
+  for (const existingSettings of [
+    { hooks: null },
+    { hooks: { PreToolUse: null } },
+    { hooks: { PreToolUse: [{ hooks: null }] } },
+  ]) {
+    const fixture = await createFixture({ existingSettings });
+    try {
+      assert.equal(fixture.installResult.code, 1);
+      assert.deepEqual(
+        JSON.parse(await readFile(fixture.configPath, 'utf-8')),
+        existingSettings,
+      );
+    } finally {
+      await fixture.close();
+    }
+  }
+});
+
 test('Codex install preserves malformed config for recovery', async () => {
   const fixture = await createFixture({ existingSettings: '{ malformed' });
   try {
