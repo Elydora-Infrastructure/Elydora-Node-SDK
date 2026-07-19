@@ -26,6 +26,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Write Auggie hooks only to `~/.augment/settings.json`; keep system and workspace settings read-only. Generate `.cmd` wrappers on Windows and `.sh` wrappers on Unix because Auggie dispatches supported script paths, and express hook timeouts in milliseconds.
 - Write Cline hooks only to `$CLINE_DIR/hooks` with `~/.cline/hooks` as the default; keep Documents and workspace hook roots read-only. Translate guard exit code `2` into Cline's JSON stdout cancellation control and preserve official hook input byte-for-byte.
 - Preserve Factory Droid's scope-root `hooks.json` precedence, legacy nested hook source, and per-event `settings.json` fallback. Scope-root and legacy files store event keys at the document root; settings stores the same map under `hooks`. Edit only effective user sources; keep project and organization sources read-only. Preserve JSONC comments through syntax-tree edits and require `/hooks` review after external changes.
+- Resolve Qwen Code user settings through explicit `QWEN_HOME`, then user-level `.qwen/.env`, then `~/.env`, with `~/.qwen/settings.json` as the default. Keep workspace settings read-only. Preserve JSON comments, reject trailing commas and duplicate keys before writes, express timeouts in milliseconds, propagate native exit code `2` through PowerShell, and require `/hooks` review.
 
 ## Code Quality
 

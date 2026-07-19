@@ -72,6 +72,7 @@ npx elydora install \
 | Factory Droid | `droid` |
 | Kimi Code | `kimi` |
 | Grok Build | `grok` |
+| Qwen Code | `qwen` |
 | Cursor | `cursor` |
 | Gemini CLI | `gemini` |
 | Kiro CLI | `kirocli` |
@@ -89,6 +90,8 @@ Factory Droid installation preserves the active user source across `~/.factory/h
 Kimi installation writes the strict hook contract to each detected runtime: Kimi Code's `$KIMI_CODE_HOME/config.toml` (default `~/.kimi-code/config.toml`) and the migrating Python CLI's `~/.kimi/config.toml`. A fresh installation targets current Kimi Code, avoiding cross-runtime migration markers. Both runtimes load the hooks globally; run `/hooks` to inspect them.
 
 Grok Build installation writes native global hooks to `$GROK_HOME/hooks/elydora-audit.json` (default `~/.grok/hooks/elydora-audit.json`). Project hooks still follow Grok's `/hooks-trust` workflow; Elydora leaves project, Claude Code, and Cursor compatibility files unchanged.
+
+Qwen Code installation writes user hooks to `$QWEN_HOME/settings.json` (default `~/.qwen/settings.json`). User-level `.qwen/.env` takes precedence over `~/.env` when it defines `QWEN_HOME`; explicit process environment values take highest precedence. Workspace settings remain unchanged. Run `/hooks` to review the definitions. `disableAllHooks` and `--safe-mode` suspend hook execution.
 
 Auggie installation writes user-level hooks to `~/.augment/settings.json` and creates the `.cmd` or `.sh` wrappers required by its command runner. System and workspace settings remain unchanged. Sessions started with `--augment-cache-dir` load settings from that alternate directory.
 
