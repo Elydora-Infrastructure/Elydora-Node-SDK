@@ -22,6 +22,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Use the provider's documented blocking mechanism. Command-hook providers that define exit code `2` must receive exit code `2` from the freeze guard.
 - Report installation as healthy only when a complete hook contract references both generated runtime scripts and both scripts exist.
 - Model stable, legacy, and early-access hook generations as explicit contracts. Keep their activation requirements visible in CLI output and README guidance.
+- Keep Grok Build writes inside its native global `$GROK_HOME/hooks/*.json` contract. Treat Claude Code and Cursor compatibility files plus project `.grok/hooks` as read-only integration sources.
 
 ## Code Quality
 
