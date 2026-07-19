@@ -36,6 +36,8 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Propagate unexpected errors to the CLI boundary.
 - Use documented defaults only for genuinely optional configuration.
 - Avoid compatibility shims without a named public or user configuration contract.
+- Keep private keys and API tokens out of process arguments and generated setup commands. Accept them through hidden terminal input or owner-only credential files.
+- Persist credential-bearing files through owner-only same-directory temporary files and atomic rename.
 
 ## Verification
 
