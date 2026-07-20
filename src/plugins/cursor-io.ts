@@ -13,6 +13,7 @@ import {
   createDocument,
   isObject,
   parseDocument,
+  parseStrictJsonObject,
 } from './cursor-contract.js';
 
 function errorMessage(error: unknown): string {
@@ -204,18 +205,7 @@ export async function requireRuntime(filePath: string, label: string): Promise<v
 async function readRuntimeConfig(filePath: string): Promise<JsonObject | undefined> {
   const raw = await readOptionalPhysical(filePath, 'Elydora runtime config');
   if (raw === undefined) return undefined;
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch (error) {
-    throw new Error(`Failed to parse Elydora runtime config at ${filePath}: ${errorMessage(error)}`, {
-      cause: asError(error),
-    });
-  }
-  if (!isObject(value)) {
-    throw new Error(`Elydora runtime config at ${filePath} must contain a JSON object`);
-  }
-  return value;
+  return parseStrictJsonObject(raw, `Elydora runtime config at ${filePath}`);
 }
 
 function sameAgentId(left: unknown, right: string): boolean {
@@ -236,6 +226,10 @@ export async function runtimeFilesExist(contracts: RuntimeContract[]): Promise<b
     const files = await Promise.all([
       physicalFileExists(contract.guardPath, 'Elydora guard runtime'),
       physicalFileExists(contract.auditPath, 'Elydora audit runtime'),
+      physicalFileExists(
+        path.join(path.dirname(contract.guardPath), 'private.key'),
+        'Elydora private key',
+      ),
     ]);
     if (files.every(Boolean)) return true;
   }

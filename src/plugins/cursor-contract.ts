@@ -193,7 +193,7 @@ function rejectDuplicateKeys(node: Node | undefined, label: string, location: st
   }
 }
 
-function parseJsonObject(raw: string, label: string): JsonObject {
+export function parseStrictJsonObject(raw: string, label: string): JsonObject {
   const errors: ParseError[] = [];
   const value: unknown = parse(raw, errors, {
     allowTrailingComma: false,
@@ -233,13 +233,17 @@ function readHooks(value: unknown, label: string): CursorHooks {
 
 export function parseDocument(filePath: string, raw: string): CursorDocument {
   const label = `Cursor user hooks at ${filePath}`;
-  const root = parseJsonObject(raw, label);
-  if (root.version !== 1) throw new Error(`${label} must declare version 1`);
+  const root = parseStrictJsonObject(raw, label);
+  const hooks = readHooks(root.hooks, label);
+  const hasVersion = Object.prototype.hasOwnProperty.call(root, 'version');
+  if (root.version !== 1 && (hasVersion || !containsManagedHook(hooks))) {
+    throw new Error(`${label} must declare version 1`);
+  }
   return {
     exists: true,
     filePath,
     root,
-    hooks: readHooks(root.hooks, label),
+    hooks,
     raw,
   };
 }
@@ -255,6 +259,7 @@ export function removeManagedHooks(hooks: CursorHooks, agentId?: string): Cursor
   for (const [event, scriptName] of [
     ['preToolUse', GUARD_SCRIPT],
     ['postToolUse', AUDIT_SCRIPT],
+    ['postToolUseFailure', AUDIT_SCRIPT],
   ] as const) {
     const handlers = (next[event] ?? []).filter((handler) => {
       const managedId = managedAgentId(handler, scriptName);
@@ -277,7 +282,7 @@ function entirelyManaged(document: CursorDocument): boolean {
   for (const [event, handlers] of events) {
     const scriptName = event === 'preToolUse'
       ? GUARD_SCRIPT
-      : event === 'postToolUse'
+      : event === 'postToolUse' || event === 'postToolUseFailure'
         ? AUDIT_SCRIPT
         : undefined;
     if (!scriptName || handlers.length === 0) return false;
@@ -315,12 +320,21 @@ function managedIds(handlers: JsonObject[], scriptName: string): Map<string, str
   return result;
 }
 
+function containsManagedHook(hooks: CursorHooks): boolean {
+  return [
+    ...(hooks.preToolUse ?? []).map((handler) => managedAgentId(handler, GUARD_SCRIPT)),
+    ...(hooks.postToolUse ?? []).map((handler) => managedAgentId(handler, AUDIT_SCRIPT)),
+    ...(hooks.postToolUseFailure ?? []).map((handler) => managedAgentId(handler, AUDIT_SCRIPT)),
+  ].some((agentId) => agentId !== undefined);
+}
+
 export function runtimeContracts(hooks: CursorHooks): RuntimeContract[] {
   const guards = managedIds(hooks.preToolUse ?? [], GUARD_SCRIPT);
   const audits = managedIds(hooks.postToolUse ?? [], AUDIT_SCRIPT);
+  const failures = managedIds(hooks.postToolUseFailure ?? [], AUDIT_SCRIPT);
   const root = path.join(os.homedir(), '.elydora');
   return [...guards]
-    .filter(([key]) => audits.has(key))
+    .filter(([key]) => audits.has(key) && failures.has(key))
     .map(([, agentId]) => ({
       agentId,
       guardPath: path.join(root, agentId, GUARD_SCRIPT),
