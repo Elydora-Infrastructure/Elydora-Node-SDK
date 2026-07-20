@@ -14,7 +14,8 @@ import {
   prepareKiroIdeInstallation,
   prepareKiroIdeUninstall,
 } from './kiroide-installation.js';
-import { readKiroIdeSources, runtimeFilesExist } from './kiroide-io.js';
+import { readKiroIdeSources } from './kiroide-io.js';
+import { managedRuntimeFilesExist } from './managed-runtime-status.js';
 import { SUPPORTED_AGENTS } from './registry.js';
 
 const entry = SUPPORTED_AGENTS.get(AGENT_KEY)!;
@@ -60,7 +61,9 @@ export const kiroidePlugin: AgentPlugin = {
     const contracts = kiroIdeRuntimeContracts(sources.document.hooks);
     const hookConfigured = contracts.length > 0;
     const hookScriptExists = hookConfigured
-      && (await Promise.all(contracts.map((contract) => runtimeFilesExist(contract)))).every(Boolean);
+      && (await Promise.all(contracts.map((contract) => (
+        managedRuntimeFilesExist(contract, AGENT_KEY)
+      )))).every(Boolean);
     return {
       installed: hookConfigured && hookScriptExists,
       agentName: AGENT_KEY,

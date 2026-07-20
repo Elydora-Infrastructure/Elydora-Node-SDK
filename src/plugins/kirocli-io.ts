@@ -12,8 +12,8 @@ import {
   type KiroIdeDocument,
   type KiroIdeRuntimeContract,
 } from './kiroide-contract.js';
-import { runtimeFilesExist } from './kiroide-io.js';
 import { inspectPhysicalDirectory, readPhysicalFile } from './managed-files.js';
+import { managedRuntimeFilesExist } from './managed-runtime-status.js';
 
 const MAX_HOOK_BYTES = 512 * 1024;
 
@@ -64,5 +64,5 @@ export async function readKiroCliSources(): Promise<KiroCliSources> {
 export async function kiroCliRuntimeFilesExist(
   contract: KiroIdeRuntimeContract,
 ): Promise<boolean> {
-  return runtimeFilesExist(contract, AGENT_KEY);
+  return managedRuntimeFilesExist(contract, AGENT_KEY);
 }

@@ -11,7 +11,7 @@ export const SUPPORTED_AGENTS: ReadonlyMap<string, AgentRegistryEntry> = new Map
   ['gemini', { name: 'Gemini CLI', configDir: '~/.gemini', configFile: 'settings.json' }],
   ['kirocli', { name: 'Kiro CLI', configDir: '~/.kiro/hooks', configFile: 'elydora-audit.json' }],
   ['kiroide', { name: 'Kiro IDE', configDir: '.kiro/hooks', configFile: 'elydora-audit.json' }],
-  ['opencode', { name: 'OpenCode', configDir: '.config/opencode/plugins', configFile: 'elydora-audit.mjs' }],
+  ['opencode', { name: 'OpenCode', configDir: '.config/opencode/plugins', configFile: 'elydora-audit.js' }],
   ['copilot', { name: 'GitHub Copilot CLI', configDir: '~/.copilot/hooks', configFile: 'elydora-audit.json' }],
   ['letta', { name: 'Letta Code', configDir: '~/.letta', configFile: 'settings.json' }],
   ['codex', { name: 'OpenAI Codex', configDir: '~/.codex', configFile: 'hooks.json' }],

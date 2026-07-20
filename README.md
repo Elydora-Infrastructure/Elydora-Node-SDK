@@ -108,6 +108,8 @@ Kiro IDE 1.0 installation is workspace-scoped. Run the installer from the worksp
 
 Kiro CLI installation commits the global v2 custom agent at `~/.kiro/agents/elydora-audit.json`, the CLI 2.13.0+ v3 global hooks at `~/.kiro/hooks/elydora-audit.json`, generated runtimes, runtime config, and private key through one rollback-capable transaction. The v2 agent uses exact lower-camel `preToolUse` and `postToolUse` handlers with ten-second millisecond timeouts. The v3 source uses Kiro's v1 schema with exact PascalCase `PreToolUse` and `PostToolUse` command hooks. Both contracts preserve the complete native event payload and propagate frozen or revoked state through exit code `2`. Validate v2 with `kiro-cli agent validate --path ~/.kiro/agents/elydora-audit.json` and start it with `kiro-cli --agent elydora-audit`; start the v3 TUI with `kiro-cli --v3`.
 
+OpenCode 1.18.4 installation writes the named `ElydoraAuditPlugin` export to `${XDG_CONFIG_HOME:-~/.config}/opencode/plugins/elydora-audit.js`, matching the official global plugin loader's `.js` and `.ts` discovery contract. `XDG_CONFIG_HOME` must be absolute. The `tool.execute.before` hook synchronously evaluates the full native input and argument payload and throws on frozen or revoked state. The awaited `tool.execute.after` hook preserves the complete native input and output payload and reports audit runtime failures to stderr. The plugin, exact legacy `.mjs` migration, generated runtimes, runtime config, and private key commit through one rollback-capable transaction. Status requires physical paths, exact generated sources, the installed Node executable, canonical private keys, and matching runtime identity. Restart active OpenCode sessions after installation.
+
 ## API Reference
 
 ### Configuration
