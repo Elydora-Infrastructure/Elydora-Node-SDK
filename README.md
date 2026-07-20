@@ -104,6 +104,8 @@ Qwen Code 0.20.0 installation writes exact, named `PreToolUse`, `PostToolUse`, a
 
 Auggie installation commits `~/.augment/settings.json`, both platform wrappers, generated runtimes, runtime config, and private key as one rollback-capable transaction. The managed `PreToolUse` guard propagates exit code `2`; `PostToolUse` preserves Auggie's complete native hook payload. System, workspace, local workspace, and alternate `--augment-cache-dir` settings remain unchanged. Run `auggie tools list` to validate the effective user configuration.
 
+Kiro IDE 1.0 installation is workspace-scoped. Run the installer from the workspace root; it writes `.kiro/hooks/elydora-audit.json` with exact `PreToolUse` and `PostToolUse` command hooks in Kiro's v1 JSON schema. The hook file, any exact Elydora legacy migration, generated runtimes, runtime config, and private key commit through one rollback-capable transaction. Managed handlers preserve Kiro's complete native payload and propagate frozen or revoked state through exit code `2`. Open the Agent Hooks panel after installation and confirm both Elydora entries.
+
 Kiro CLI installation covers both runtime contracts. Kiro CLI v2 uses the generated custom agent through `kiro-cli --agent elydora-audit`. Kiro CLI v3 loads the global standalone hooks when started with `kiro-cli --v3`.
 
 ## API Reference
