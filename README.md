@@ -79,7 +79,7 @@ The CLI reads the private key and optional API token through hidden terminal pro
 | Kiro CLI | `kirocli` |
 | Kiro IDE | `kiroide` |
 | OpenCode | `opencode` |
-| Copilot CLI | `copilot` |
+| GitHub Copilot CLI | `copilot` |
 | Letta Code | `letta` |
 
 Codex performs a one-time trust review for user hooks. Run `/hooks` in Codex after installation and trust the Elydora `PreToolUse` and `PostToolUse` definitions.
