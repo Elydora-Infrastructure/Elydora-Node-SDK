@@ -40,7 +40,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Avoid compatibility shims without a named public or user configuration contract.
 - Keep private keys and API tokens out of process arguments and generated setup commands. Accept them through hidden terminal input or owner-only credential files.
 - Persist credential-bearing files through owner-only same-directory temporary files and atomic rename.
-- Read runtime config, private keys, status cache, chain state, and error logs through physical-file descriptors with identity checks. Write cache and chain state atomically, and append error logs through no-follow owner-only descriptors.
+- Read runtime config, private keys, status cache, chain state, and error logs through physical-file descriptors with identity checks. Write cache and validated chain state atomically, and append error logs through no-follow owner-only descriptors. Preserve rollback artifacts when recovery cannot safely restore an original file and include the recovery path in the surfaced error.
 - Resolve every agent runtime directory as one physical child of `~/.elydora`; reject separators, traversal segments, cross-platform reserved names, symbolic-link directories, and linked identity configs before writes or recursive removal. Validate stored directory identity before changing host CLI configuration, and require an explicit agent ID when discovery is ambiguous.
 
 ## Verification
