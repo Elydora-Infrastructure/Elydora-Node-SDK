@@ -82,7 +82,7 @@ The CLI reads the private key and optional API token through hidden terminal pro
 | GitHub Copilot CLI | `copilot` |
 | Letta Code | `letta` |
 
-Codex performs a one-time trust review for user hooks. Run `/hooks` in Codex after installation and trust the Elydora `PreToolUse` and `PostToolUse` definitions.
+Codex installation writes exact `PreToolUse` and `PostToolUse` command groups to `$CODEX_HOME/hooks.json` (`~/.codex/hooks.json` by default) and preserves the complete native event payload. A configured `CODEX_HOME` follows Codex's existing-directory canonicalization rule. User TOML, project, plugin, and managed sources remain unchanged and continue loading additively. The hook file, generated runtimes, runtime config, and private key commit as one rollback-capable update. Run `/hooks` after installation and approve both Elydora definition hashes.
 
 Cursor installation writes native `preToolUse`, `postToolUse`, and `postToolUseFailure` handlers to `~/.cursor/hooks.json` for both the CLI and IDE. Project and enterprise hook sources remain unchanged. The installation commits Cursor's hook file, generated runtimes, runtime config, and private key as one rollback-capable update. Managed commands use the current Node.js executable, preserve the complete Cursor JSON payload, return valid JSON, propagate freeze and revocation exit code `2`, and enable `failClosed` with a ten-second timeout.
 

@@ -43,11 +43,11 @@ async function createFixture(status) {
   };
 }
 
-function runGuard(scriptPath, homeDir) {
+function runGuard(scriptPath, homeDir, input = '{}') {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [scriptPath], {
       env: { ...process.env, HOME: homeDir, USERPROFILE: homeDir },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
     let stderr = '';
@@ -55,6 +55,7 @@ function runGuard(scriptPath, homeDir) {
     child.stderr.on('data', (chunk) => { stderr += chunk; });
     child.once('error', reject);
     child.once('close', (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(input);
   });
 }
 
@@ -96,6 +97,19 @@ test('cached frozen status keeps the blocking exit code', async () => {
 
     assert.equal(result.code, 2);
     assert.match(result.stderr, /Tool execution blocked/);
+    assert.equal(result.stdout, '');
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('fail-open guards report malformed hook input', async () => {
+  const fixture = await createFixture('active');
+  try {
+    const result = await runGuard(fixture.scriptPath, fixture.homeDir, '{ malformed');
+
+    assert.equal(result.code, 0);
+    assert.match(result.stderr, /invalid JSON.*fail-open/i);
     assert.equal(result.stdout, '');
   } finally {
     await fixture.close();

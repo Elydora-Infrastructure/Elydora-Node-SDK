@@ -23,6 +23,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Use the provider's documented blocking mechanism. Command-hook providers that define exit code `2` must receive exit code `2` from the freeze guard.
 - Report installation as healthy only when a complete hook contract references every required event and both generated runtime scripts, runtime config, and private key exist as physical files.
 - Model stable, legacy, and early-access hook generations as explicit contracts. Keep their activation requirements visible in CLI output and README guidance.
+- Resolve Codex user hooks through `CODEX_HOME/hooks.json` with `~/.codex/hooks.json` as the default, matching Codex's existing-directory canonicalization rule. Preserve user TOML, project, plugin, and managed hook sources because Codex composes them additively. Register exact `PreToolUse` and `PostToolUse` matcher groups with ten-second command handlers, preserve the complete native payload, propagate freeze and revocation through exit code `2`, and keep guard lookup and audit delivery fail-open with observable errors. Commit Codex's user hooks, guard, audit runtime, runtime config, and private key through one rollback-capable transaction. Use `/hooks` to approve both definition hashes after installation.
 - Keep Grok Build writes inside its native global `$GROK_HOME/hooks/*.json` contract. Treat Claude Code and Cursor compatibility files plus project `.grok/hooks` as read-only integration sources.
 - Write Auggie hooks only to `~/.augment/settings.json`; keep system and workspace settings read-only. Generate `.cmd` wrappers on Windows and `.sh` wrappers on Unix because Auggie dispatches supported script paths, and express hook timeouts in milliseconds.
 - Write Cline hooks only to `$CLINE_DIR/hooks` with `~/.cline/hooks` as the default; keep Documents and workspace hook roots read-only. Translate guard exit code `2` into Cline's JSON stdout cancellation control and preserve official hook input byte-for-byte.
@@ -39,6 +40,7 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Avoid compatibility shims without a named public or user configuration contract.
 - Keep private keys and API tokens out of process arguments and generated setup commands. Accept them through hidden terminal input or owner-only credential files.
 - Persist credential-bearing files through owner-only same-directory temporary files and atomic rename.
+- Read runtime config, private keys, status cache, chain state, and error logs through physical-file descriptors with identity checks. Write cache and chain state atomically, and append error logs through no-follow owner-only descriptors.
 - Resolve every agent runtime directory as one physical child of `~/.elydora`; reject separators, traversal segments, cross-platform reserved names, symbolic-link directories, and linked identity configs before writes or recursive removal. Validate stored directory identity before changing host CLI configuration, and require an explicit agent ID when discovery is ambiguous.
 
 ## Verification
