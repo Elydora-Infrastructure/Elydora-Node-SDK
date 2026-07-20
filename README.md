@@ -106,7 +106,7 @@ Auggie installation commits `~/.augment/settings.json`, both platform wrappers, 
 
 Kiro IDE 1.0 installation is workspace-scoped. Run the installer from the workspace root; it writes `.kiro/hooks/elydora-audit.json` with exact `PreToolUse` and `PostToolUse` command hooks in Kiro's v1 JSON schema. The hook file, any exact Elydora legacy migration, generated runtimes, runtime config, and private key commit through one rollback-capable transaction. Managed handlers preserve Kiro's complete native payload and propagate frozen or revoked state through exit code `2`. Open the Agent Hooks panel after installation and confirm both Elydora entries.
 
-Kiro CLI installation covers both runtime contracts. Kiro CLI v2 uses the generated custom agent through `kiro-cli --agent elydora-audit`. Kiro CLI v3 loads the global standalone hooks when started with `kiro-cli --v3`.
+Kiro CLI installation commits the global v2 custom agent at `~/.kiro/agents/elydora-audit.json`, the CLI 2.13.0+ v3 global hooks at `~/.kiro/hooks/elydora-audit.json`, generated runtimes, runtime config, and private key through one rollback-capable transaction. The v2 agent uses exact lower-camel `preToolUse` and `postToolUse` handlers with ten-second millisecond timeouts. The v3 source uses Kiro's v1 schema with exact PascalCase `PreToolUse` and `PostToolUse` command hooks. Both contracts preserve the complete native event payload and propagate frozen or revoked state through exit code `2`. Validate v2 with `kiro-cli agent validate --path ~/.kiro/agents/elydora-audit.json` and start it with `kiro-cli --agent elydora-audit`; start the v3 TUI with `kiro-cli --v3`.
 
 ## API Reference
 

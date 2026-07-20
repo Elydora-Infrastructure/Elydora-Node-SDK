@@ -212,6 +212,20 @@ test('Kiro IDE status requires the exact enabled contract and physical runtime',
     }
   });
 
+  await t.test('recognized altered hook degrades status', async () => {
+    const fixture = await createFixture();
+    try {
+      assert.equal((await fixture.install()).code, 0);
+      const document = await readJson(fixture.configPath);
+      document.hooks.push({ ...findHook(document, 'elydora-guard'), enabled: false });
+      await writeJson(fixture.configPath, document);
+      const status = await runPlugin(fixture, 'status', null);
+      assert.equal(JSON.parse(status.stdout).hookConfigured, false);
+    } finally {
+      await fixture.close();
+    }
+  });
+
   for (const [label, target, contents, expected] of [
     ['guard runtime', 'guard', 'tampered\n', /"installed":false/],
     ['runtime config', 'config', '{ malformed', /parse Elydora runtime config/i],
@@ -342,6 +356,15 @@ test('Kiro IDE uninstall removes exact ownership and preserves workspace hooks',
     await assertMissing(owned.configPath);
   } finally {
     await owned.close();
+  }
+
+  const source = '{ "version": "v1", "hooks": [{ "name": "user", "trigger": "SessionStart", "action": { "type": "command", "command": "echo user" } }] }\n';
+  const unrelated = await createFixture({ existingConfig: source });
+  try {
+    assert.equal((await runPlugin(unrelated, 'uninstall', unrelated.agentId)).code, 0);
+    assert.equal(await readFile(unrelated.configPath, 'utf-8'), source);
+  } finally {
+    await unrelated.close();
   }
 });
 

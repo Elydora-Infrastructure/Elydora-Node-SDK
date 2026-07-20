@@ -95,6 +95,7 @@ function validateRuntimeConfig(
   config: JsonObject,
   contract: KiroIdeRuntimeContract,
   configPath: string,
+  agentKey: string,
 ): void {
   const supported = new Set(['org_id', 'agent_id', 'kid', 'base_url', 'token', 'agent_name']);
   const extra = Object.keys(config).find((key) => !supported.has(key));
@@ -102,8 +103,8 @@ function validateRuntimeConfig(
   requireString(config.org_id, 'org_id', configPath);
   requireString(config.kid, 'kid', configPath);
   const agentId = requireString(config.agent_id, 'agent_id', configPath);
-  if (!sameKiroIdeAgentId(agentId, contract.agentId) || config.agent_name !== AGENT_KEY) {
-    throw new Error(`Elydora runtime identity does not match Kiro IDE hooks: ${configPath}`);
+  if (!sameKiroIdeAgentId(agentId, contract.agentId) || config.agent_name !== agentKey) {
+    throw new Error(`Elydora runtime identity does not match ${agentKey} hooks: ${configPath}`);
   }
   if (config.token !== undefined) requireString(config.token, 'token', configPath);
   const rawBaseUrl = requireString(config.base_url, 'base_url', configPath);
@@ -139,7 +140,10 @@ function validContractPaths(contract: KiroIdeRuntimeContract): boolean {
     && sameKiroIdePath(contract.auditPath, path.join(agentDirectory, AUDIT_SCRIPT));
 }
 
-export async function runtimeFilesExist(contract: KiroIdeRuntimeContract): Promise<boolean> {
+export async function runtimeFilesExist(
+  contract: KiroIdeRuntimeContract,
+  agentKey = AGENT_KEY,
+): Promise<boolean> {
   if (!validContractPaths(contract)) return false;
   const runtimeRoot = path.join(os.homedir(), '.elydora');
   const agentDirectory = path.dirname(contract.guardPath);
@@ -158,8 +162,9 @@ export async function runtimeFilesExist(contract: KiroIdeRuntimeContract): Promi
     parseStrictJsonObject(config.contents, `Elydora runtime config at ${configPath}`),
     contract,
     configPath,
+    agentKey,
   );
   validatePrivateKey(key.contents, keyPath);
-  return guard.contents === generateGuardScript(AGENT_KEY, contract.agentId)
-    && audit.contents === generateHookScript(AGENT_KEY, contract.agentId, { nativePayload: true });
+  return guard.contents === generateGuardScript(agentKey, contract.agentId)
+    && audit.contents === generateHookScript(agentKey, contract.agentId, { nativePayload: true });
 }

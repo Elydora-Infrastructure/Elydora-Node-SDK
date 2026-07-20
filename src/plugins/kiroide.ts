@@ -60,7 +60,7 @@ export const kiroidePlugin: AgentPlugin = {
     const contracts = kiroIdeRuntimeContracts(sources.document.hooks);
     const hookConfigured = contracts.length > 0;
     const hookScriptExists = hookConfigured
-      && (await Promise.all(contracts.map(runtimeFilesExist))).every(Boolean);
+      && (await Promise.all(contracts.map((contract) => runtimeFilesExist(contract)))).every(Boolean);
     return {
       installed: hookConfigured && hookScriptExists,
       agentName: AGENT_KEY,

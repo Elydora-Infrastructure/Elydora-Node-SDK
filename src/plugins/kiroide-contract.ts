@@ -110,8 +110,8 @@ function validateAction(value: unknown, label: string): KiroIdeAction {
   throw new Error(`${label} action has unsupported type "${String(value.type)}"`);
 }
 
-function validateHook(value: unknown, index: number): KiroIdeHook {
-  const label = `Kiro IDE hook hooks[${index}]`;
+function validateHook(value: unknown, index: number, documentLabel: string): KiroIdeHook {
+  const label = `${documentLabel} hooks[${index}]`;
   if (!isObject(value)) throw new Error(`${label} must be an object`);
   if (typeof value.name !== 'string' || !value.name) throw new Error(`${label} requires a name`);
   if (typeof value.trigger !== 'string' || !KIRO_TRIGGERS.has(value.trigger)) {
@@ -133,15 +133,19 @@ function validateHook(value: unknown, index: number): KiroIdeHook {
   return { ...value, action: validateAction(value.action, label) } as KiroIdeHook;
 }
 
-export function parseKiroIdeDocument(filePath: string, raw: string): KiroIdeDocument {
-  const root = parseStrictJsonObject(raw, `Kiro IDE hooks at ${filePath}`);
-  if (root.version !== 'v1') throw new Error(`Kiro IDE hooks version must be "v1": ${filePath}`);
-  if (!Array.isArray(root.hooks)) throw new Error(`Kiro IDE hooks field "hooks" must be an array: ${filePath}`);
+export function parseKiroIdeDocument(
+  filePath: string,
+  raw: string,
+  documentLabel = 'Kiro IDE hooks',
+): KiroIdeDocument {
+  const root = parseStrictJsonObject(raw, `${documentLabel} at ${filePath}`);
+  if (root.version !== 'v1') throw new Error(`${documentLabel} version must be "v1": ${filePath}`);
+  if (!Array.isArray(root.hooks)) throw new Error(`${documentLabel} field "hooks" must be an array: ${filePath}`);
   return {
     exists: true,
     filePath,
     root,
-    hooks: root.hooks.map((hook, index) => validateHook(hook, index)),
+    hooks: root.hooks.map((hook, index) => validateHook(hook, index, documentLabel)),
     raw,
   };
 }
@@ -191,10 +195,13 @@ function ownedReference(hook: KiroIdeHook) {
   return kiroIdeRuntimeReference(hook.action.command, specification.scriptName);
 }
 
-export function requireAvailableKiroIdeHooks(hooks: readonly KiroIdeHook[]): void {
+export function requireAvailableKiroIdeHooks(
+  hooks: readonly KiroIdeHook[],
+  productLabel = 'Kiro IDE',
+): void {
   for (const hook of hooks) {
     if (managedSpecification(hook.name) && !ownedReference(hook)) {
-      throw new Error(`Kiro IDE hook name "${hook.name}" conflicts with the Elydora contract`);
+      throw new Error(`${productLabel} hook name "${hook.name}" conflicts with the Elydora contract`);
     }
   }
 }
@@ -237,6 +244,11 @@ export function renderKiroIdeDocument(
   hooks: readonly KiroIdeHook[],
 ): RenderedKiroIdeDocument {
   if (!document.exists && hooks.length === 0) return { document, changed: false };
+  if (document.exists
+    && hooks.length === document.hooks.length
+    && hooks.every((hook, index) => hook === document.hooks[index])) {
+    return { document, changed: false };
+  }
   if (hooks.length === 0 && entirelyManaged(document)) return { document, changed: true };
   const next = `${JSON.stringify({ ...document.root, version: 'v1', hooks }, null, 2)}\n`;
   return { document, changed: next !== document.raw, next };
@@ -248,8 +260,9 @@ export function kiroIdeRuntimeContracts(
   const guards = new Map<string, KiroIdeRuntimeReference[]>();
   const audits = new Map<string, KiroIdeRuntimeReference[]>();
   for (const hook of hooks) {
+    if (!managedSpecification(hook.name)) continue;
     const reference = managedReference(hook);
-    if (!reference) continue;
+    if (!reference) return [];
     const key = process.platform === 'win32' ? reference.agentId.toLowerCase() : reference.agentId;
     const target = hook.name === GUARD_NAME ? guards : audits;
     const entries = target.get(key) ?? [];
