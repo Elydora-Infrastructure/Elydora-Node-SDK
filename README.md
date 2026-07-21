@@ -68,13 +68,13 @@ The CLI reads the private key and optional API token through hidden terminal pro
 |-------|-----|
 | Augment Code CLI | `augment` |
 | Claude Code | `claudecode` |
-| OpenAI Codex | `codex` |
+| Codex CLI | `codex` |
 | Cline | `cline` |
 | Factory Droid | `droid` |
 | Kimi Code | `kimi` |
 | Grok Build | `grok` |
 | Qwen Code | `qwen` |
-| Cursor | `cursor` |
+| Cursor CLI | `cursor` |
 | Gemini CLI | `gemini` |
 | Kiro CLI | `kirocli` |
 | Kiro IDE | `kiroide` |
