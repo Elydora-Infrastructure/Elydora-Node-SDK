@@ -39,7 +39,7 @@ const CHAIN_STATE_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'chain-state.json');
 const ERROR_LOG_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'error.log');
 const ZERO_CHAIN_HASH = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const MAX_CHAIN_ATTEMPTS = 5;
-const SUBMIT_BUDGET_MS = 6000;
+const SUBMIT_BUDGET_MS = 4000;
 
 ${PROTECTED_RUNTIME_READER}
 
@@ -165,6 +165,81 @@ function readChainState() {
 
 function writeChainState(chainHash) {
   writeProtectedJson(CHAIN_STATE_PATH, 'Chain state', { prev_chain_hash: chainHash });
+}
+
+function lockOwnerAlive(lockPath) {
+  let owner;
+  try {
+    owner = Number.parseInt(fs.readFileSync(lockPath, 'utf-8'), 10);
+  } catch (error) {
+    if (!hasRuntimeErrorCode(error, 'ENOENT')) throw error;
+    return false;
+  }
+  if (!Number.isInteger(owner) || owner <= 0) return false;
+  try {
+    process.kill(owner, 0);
+    return true;
+  } catch (error) {
+    if (hasRuntimeErrorCode(error, 'ESRCH')) return false;
+    return true;
+  }
+}
+
+function withChainLock(update) {
+  const lockPath = CHAIN_STATE_PATH + '.lock';
+  const deadline = performance.now() + 1000;
+  for (;;) {
+    let descriptor;
+    try {
+      descriptor = fs.openSync(lockPath, 'wx', 0o600);
+      fs.writeSync(descriptor, String(process.pid));
+    } catch (error) {
+      if (!hasRuntimeErrorCode(error, 'EEXIST')) throw error;
+      if (lockOwnerAlive(lockPath)) {
+        if (performance.now() > deadline) throw new Error('Chain state lock timed out: ' + lockPath);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+        continue;
+      }
+      let age = 0;
+      try { age = Date.now() - fs.statSync(lockPath).mtimeMs; } catch (statError) {
+        if (!hasRuntimeErrorCode(statError, 'ENOENT')) throw statError;
+      }
+      if (age > 5000) {
+        const reclaimed = lockPath + '.' + process.pid + '.stale';
+        try {
+          fs.renameSync(lockPath, reclaimed);
+          fs.unlinkSync(reclaimed);
+        } catch (reclaimError) {
+          if (!hasRuntimeErrorCode(reclaimError, 'ENOENT')) throw reclaimError;
+        }
+        continue;
+      }
+      if (performance.now() > deadline) throw new Error('Chain state lock timed out: ' + lockPath);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+      continue;
+    }
+    try {
+      return update();
+    } finally {
+      let current = null;
+      try {
+        current = fs.lstatSync(lockPath);
+      } catch (statError) {
+        if (!hasRuntimeErrorCode(statError, 'ENOENT')) throw statError;
+      }
+      const own = fs.fstatSync(descriptor);
+      fs.closeSync(descriptor);
+      if (current && current.ino === own.ino && current.dev === own.dev) fs.unlinkSync(lockPath);
+    }
+  }
+}
+
+function advanceChainState(fromHash, toHash) {
+  return withChainLock(() => {
+    if (readChainState() !== fromHash) return false;
+    writeChainState(toHash);
+    return true;
+  });
 }
 
 function readConfigAndKey() {
@@ -306,15 +381,15 @@ async function submitOperation(hookData, runtime) {
     const built = buildOperation(runtime, payload, payloadHash, toolName, sessionId, previousHash);
     const result = await postOperation(built.operation, runtime, deadline);
     if (result.accepted) {
-      writeChainState(built.chainHash);
+      advanceChainState(previousHash, built.chainHash);
       return;
     }
-    writeChainState(result.expected);
+    advanceChainState(previousHash, result.expected);
     logError(new Error('Chain hash resynced to server: ' + result.expected));
     if (attempt >= MAX_CHAIN_ATTEMPTS) {
       throw new Error('Audit API rejected prev_chain_hash ' + attempt + ' times');
     }
-    previousHash = result.expected;
+    previousHash = readChainState();
   }
 }
 
