@@ -38,6 +38,8 @@ const KEY_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'private.key');
 const CHAIN_STATE_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'chain-state.json');
 const ERROR_LOG_PATH = path.join(ELYDORA_DIR, AGENT_ID, 'error.log');
 const ZERO_CHAIN_HASH = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const MAX_CHAIN_ATTEMPTS = 5;
+const SUBMIT_BUDGET_MS = 6000;
 
 ${PROTECTED_RUNTIME_READER}
 
@@ -219,27 +221,43 @@ async function readHookInput() {
   return value;
 }
 
-async function submitOperation(hookData, runtime) {
-  const toolEvent = hookData.tool_result && typeof hookData.tool_result === 'object'
-    ? hookData.tool_result
-    : hookData.tool_call && typeof hookData.tool_call === 'object'
-      ? hookData.tool_call
-      : {};
-  const toolName = hookData.tool_name || hookData.toolName || hookData.name ||
-    toolEvent.name || 'unknown';
-  const toolInput = hookData.tool_input || hookData.toolInput || hookData.input ||
-    hookData.parameters || toolEvent.input || {};
-  const sessionId = hookData.conversation_id || hookData.session_id || hookData.sessionId ||
-    hookData.session || hookData.taskId || 'unknown';
-  const previousHash = readChainState();
+async function postOperation(operation, runtime, deadline) {
+  const remaining = deadline - performance.now();
+  if (remaining <= 0) throw new Error('Audit API retry budget exhausted');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.min(5000, remaining));
+  try {
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    if (runtime.config.token) headers.Authorization = 'Bearer ' + runtime.config.token;
+    const response = await fetch(runtime.baseUrl + '/v1/operations', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(operation),
+      signal: controller.signal,
+    });
+    if (response.ok) return { accepted: true };
+    const responseBody = await response.text();
+    if (response.status === 400 && responseBody) {
+      let failure;
+      try { failure = JSON.parse(responseBody); } catch (error) {
+        throw new Error('Audit API returned invalid error JSON: ' + error.message);
+      }
+      if (failure.error && failure.error.code === 'PREV_HASH_MISMATCH') {
+        const match = String(failure.error.message || '').match(
+          /Expected prev_chain_hash "([A-Za-z0-9_-]{43})"/,
+        );
+        if (match) return { accepted: false, expected: match[1] };
+      }
+    }
+    throw new Error('Audit API returned HTTP ' + response.status);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildOperation(runtime, payload, payloadHash, toolName, sessionId, previousHash) {
   const operationId = uuidv7();
   const issuedAt = Date.now();
-  const payload = NATIVE_PAYLOAD ? hookData : {
-    tool_name: toolName,
-    tool_input: toolInput,
-    session_id: sessionId,
-  };
-  const payloadHash = computePayloadHash(payload);
   const chainHash = computeChainHash(previousHash, payloadHash, operationId, issuedAt);
   const unsigned = {
     op_version: '1.0',
@@ -261,41 +279,42 @@ async function submitOperation(hookData, runtime) {
     runtime.privateKey,
     Buffer.from(jcsCanonicalise(unsigned), 'utf-8'),
   );
-  const operation = { ...unsigned, chain_hash: chainHash, signature };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  try {
-    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-    if (runtime.config.token) headers.Authorization = 'Bearer ' + runtime.config.token;
-    const response = await fetch(runtime.baseUrl + '/v1/operations', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(operation),
-      signal: controller.signal,
-    });
-    if (response.ok) {
-      writeChainState(chainHash);
+  return { operation: { ...unsigned, chain_hash: chainHash, signature }, chainHash };
+}
+
+async function submitOperation(hookData, runtime) {
+  const toolEvent = hookData.tool_result && typeof hookData.tool_result === 'object'
+    ? hookData.tool_result
+    : hookData.tool_call && typeof hookData.tool_call === 'object'
+      ? hookData.tool_call
+      : {};
+  const toolName = hookData.tool_name || hookData.toolName || hookData.name ||
+    toolEvent.name || 'unknown';
+  const toolInput = hookData.tool_input || hookData.toolInput || hookData.input ||
+    hookData.parameters || toolEvent.input || {};
+  const sessionId = hookData.conversation_id || hookData.session_id || hookData.sessionId ||
+    hookData.session || hookData.taskId || 'unknown';
+  const payload = NATIVE_PAYLOAD ? hookData : {
+    tool_name: toolName,
+    tool_input: toolInput,
+    session_id: sessionId,
+  };
+  const payloadHash = computePayloadHash(payload);
+  const deadline = performance.now() + SUBMIT_BUDGET_MS;
+  let previousHash = readChainState();
+  for (let attempt = 1; ; attempt += 1) {
+    const built = buildOperation(runtime, payload, payloadHash, toolName, sessionId, previousHash);
+    const result = await postOperation(built.operation, runtime, deadline);
+    if (result.accepted) {
+      writeChainState(built.chainHash);
       return;
     }
-    const responseBody = await response.text();
-    if (response.status === 400 && responseBody) {
-      let failure;
-      try { failure = JSON.parse(responseBody); } catch (error) {
-        throw new Error('Audit API returned invalid error JSON: ' + error.message);
-      }
-      if (failure.error && failure.error.code === 'PREV_HASH_MISMATCH') {
-        const match = String(failure.error.message || '').match(
-          /Expected prev_chain_hash "([A-Za-z0-9_-]{43})"/,
-        );
-        if (match) {
-          writeChainState(match[1]);
-          logError(new Error('Chain hash resynced to server: ' + match[1]));
-        }
-      }
+    writeChainState(result.expected);
+    logError(new Error('Chain hash resynced to server: ' + result.expected));
+    if (attempt >= MAX_CHAIN_ATTEMPTS) {
+      throw new Error('Audit API rejected prev_chain_hash ' + attempt + ' times');
     }
-    throw new Error('Audit API returned HTTP ' + response.status);
-  } finally {
-    clearTimeout(timeout);
+    previousHash = result.expected;
   }
 }
 
