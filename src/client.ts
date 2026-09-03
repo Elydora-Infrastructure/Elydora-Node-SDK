@@ -285,9 +285,13 @@ export class ElydoraClient {
     return handleResponse<HealthResponse>(res);
   }
 
+  /** 503 carries the degraded report, not an error. */
   async deepHealth(): Promise<DeepHealthResponse> {
     const url = `${this.baseUrl}/v1/health/deep`;
     const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    if (res.status === 503) {
+      return (await res.json()) as DeepHealthResponse;
+    }
     return handleResponse<DeepHealthResponse>(res);
   }
 
