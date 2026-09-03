@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { HookScriptOptions } from './hook-template.js';
-import { samePath } from './managed-installation.js';
+import { samePath } from './common.js';
 import { parseStrictJsonObject } from './strict-json.js';
 
 export const AGENT_KEY = 'opencode';

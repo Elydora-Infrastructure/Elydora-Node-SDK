@@ -13,7 +13,8 @@ import {
 import { writePrivateFile } from './secure-files.js';
 import { SUPPORTED_AGENTS } from './plugins/registry.js';
 import type { AgentPlugin, InstallConfig } from './plugins/base.js';
-import { generateHookScript, generateGuardScript } from './plugins/hook-template.js';
+import { generateGuardScript } from './plugins/guard-template.js';
+import { generateHookScript } from './plugins/hook-template.js';
 import { augmentPlugin } from './plugins/augment.js';
 import { claudecodePlugin } from './plugins/claudecode.js';
 import { cursorPlugin } from './plugins/cursor.js';

@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { generateGuardScript } from '../dist/plugins/hook-template.js';
+import { generateGuardScript } from '../dist/plugins/guard-template.js';
 
 const AGENT_ID = 'agent-1';
 

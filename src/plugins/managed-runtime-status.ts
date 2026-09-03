@@ -2,12 +2,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { generateGuardScript, type GuardScriptOptions } from './guard-template.js';
 import { generateHookScript, type HookScriptOptions } from './hook-template.js';
+import { MAX_CONFIG_BYTES, MAX_SECRET_BYTES, sameAgentId, samePath } from './common.js';
 import { inspectPhysicalDirectory, readPhysicalFile } from './managed-files.js';
-import { samePath } from './managed-installation.js';
 import { parseStrictJsonObject, type JsonObject } from './strict-json.js';
 
-const MAX_SECRET_BYTES = 64 * 1024;
-const MAX_CONFIG_BYTES = 512 * 1024;
 const GUARD_SCRIPT = 'guard.js';
 const AUDIT_SCRIPT = 'hook.js';
 
@@ -20,10 +18,6 @@ export interface ManagedRuntimeContract {
 export interface ManagedRuntimeStatusOptions {
   readonly guardOptions?: GuardScriptOptions;
   readonly auditOptions?: HookScriptOptions;
-}
-
-function sameAgentId(left: string, right: string): boolean {
-  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right;
 }
 
 function requireString(value: unknown, field: string, configPath: string): string {
