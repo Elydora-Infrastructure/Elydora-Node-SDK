@@ -50,10 +50,6 @@ const PLUGINS: ReadonlyMap<string, AgentPlugin> = new Map([
   ['qwen', qwenPlugin],
 ]);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function die(message: string): never {
   console.error(`Error: ${message}`);
   process.exit(1);
@@ -137,10 +133,6 @@ Supported agents: ${Array.from(SUPPORTED_AGENTS.keys()).join(', ')}
 `);
 }
 
-// ---------------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------------
-
 async function cmdInstall(args: string[]): Promise<void> {
   const { values } = parseArgs({
     args,
@@ -178,7 +170,6 @@ async function cmdInstall(args: string[]): Promise<void> {
   });
   const baseUrl = values.base_url ?? 'https://api.elydora.com';
 
-  // Validate private key by deriving public key
   let publicKey: string;
   try {
     publicKey = derivePublicKey(privateKey);
@@ -255,7 +246,6 @@ async function cmdUninstall(args: string[]): Promise<void> {
   let agentDir: string;
   let agentDirectoryExists: boolean;
 
-  // If --agent_id not provided, scan ~/.elydora/*/config.json for matching agent_name
   if (agentId) {
     agentDir = resolvePrivateChildDirectory(ELYDORA_DIR, agentId);
     const runtimeRootExists = await requirePhysicalDirectory(ELYDORA_DIR);
@@ -287,10 +277,8 @@ async function cmdUninstall(args: string[]): Promise<void> {
   const plugin = PLUGINS.get(agentName)!;
   const registryEntry = SUPPORTED_AGENTS.get(agentName)!;
 
-  // Uninstall agent-specific config
   await plugin.uninstall(agentId);
 
-  // Remove entire agent directory
   if (agentDirectoryExists) {
     await fsp.rm(agentDir, { recursive: true });
   }
@@ -303,14 +291,12 @@ async function cmdStatus(): Promise<void> {
 
   let anyInstalled = false;
 
-  // Scan ~/.elydora/*/config.json to discover installed agents
   const installedAgents = await discoverInstalledAgents();
 
   for (const [name, plugin] of PLUGINS) {
     const st = await plugin.status();
     const statusIcon = st.installed ? '[installed]' : '[not installed]';
 
-    // Find matching installed agent(s) for this plugin
     const matching = installedAgents.filter((a) => a.agentName === name);
 
     console.log(`  ${st.displayName} (${name}) ${statusIcon}`);
@@ -338,10 +324,6 @@ function cmdAgents(): void {
   }
   console.log('\nUse "elydora install --agent <name>" to install an audit hook.');
 }
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

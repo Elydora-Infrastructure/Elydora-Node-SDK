@@ -20,7 +20,6 @@ export {
 } from './utils.js';
 
 export type {
-  // Enums
   AgentStatus,
   KeyStatus,
   ExportStatus,
@@ -29,7 +28,6 @@ export type {
   AdminAction,
   ErrorCode,
 
-  // Entities
   Agent,
   AgentKey,
   Operation,
@@ -41,11 +39,9 @@ export type {
   User,
   Export,
 
-  // Protocol
   EOR,
   EAR,
 
-  // API request/response
   ElydoraClientConfig,
   CreateOperationParams,
   RegisterAgentRequest,
@@ -75,6 +71,7 @@ export type {
   JWKSResponse,
   HealthResponse,
   DeepHealthResponse,
+  Webhook,
   ListWebhooksResponse,
   RegisterWebhookResponse,
   ListMembersResponse,

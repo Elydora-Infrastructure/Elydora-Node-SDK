@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Enums / status types
-// ---------------------------------------------------------------------------
-
 export type AgentStatus = 'active' | 'frozen' | 'revoked';
 export type KeyStatus = 'active' | 'retired' | 'revoked';
 export type ExportStatus = 'queued' | 'running' | 'done' | 'failed';
@@ -37,13 +33,16 @@ export type AdminAction =
   | 'agent.register' | 'agent.update' | 'agent.freeze' | 'agent.unfreeze'
   | 'agent.revoke' | 'agent.delete' | 'key.revoke' | 'export.create'
   | 'org.create' | 'org.update'
-  | 'member.invite' | 'member.remove' | 'member.role_change'
-  | 'agent.assign' | 'agent.unassign';
+  | 'member.invite' | 'invitation.cancel' | 'member.remove' | 'member.role_change'
+  | 'agent.assign' | 'agent.unassign'
+  | 'webhook.register' | 'webhook.delete';
 export type ErrorCode =
   | 'INVALID_SIGNATURE'
   | 'UNKNOWN_AGENT'
   | 'KEY_REVOKED'
+  | 'KEY_RETIRED'
   | 'AGENT_FROZEN'
+  | 'AGENT_REVOKED'
   | 'TTL_EXPIRED'
   | 'REPLAY_DETECTED'
   | 'PREV_HASH_MISMATCH'
@@ -54,10 +53,6 @@ export type ErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'VALIDATION_ERROR';
-
-// ---------------------------------------------------------------------------
-// Entities
-// ---------------------------------------------------------------------------
 
 export interface Agent {
   readonly agent_id: string;
@@ -168,10 +163,6 @@ export interface Export {
   readonly completed_at: number | null;
 }
 
-// ---------------------------------------------------------------------------
-// Protocol types
-// ---------------------------------------------------------------------------
-
 export interface EOR {
   readonly op_version: '1.0';
   readonly operation_id: string;
@@ -205,10 +196,6 @@ export interface EAR {
   readonly elydora_signature: string;
 }
 
-// ---------------------------------------------------------------------------
-// API request/response types
-// ---------------------------------------------------------------------------
-
 export interface RegisterAgentRequest {
   readonly agent_id: string;
   readonly integration_type: IntegrationType;
@@ -238,6 +225,7 @@ export interface SubmitOperationResponse {
 export interface GetOperationResponse {
   readonly operation: Operation;
   readonly receipt?: Receipt;
+  readonly payload?: Record<string, unknown> | string;
 }
 
 export interface VerifyOperationResponse {
@@ -327,15 +315,22 @@ export interface DeleteAgentResponse {
   readonly deleted: boolean;
 }
 
+export interface Webhook {
+  readonly webhook_id: string;
+  readonly org_id: string;
+  readonly endpoint_url: string;
+  readonly events: string[];
+  readonly status: 'active' | 'disabled';
+  readonly created_at: number;
+  readonly updated_at: number;
+}
+
 export interface ListWebhooksResponse {
-  readonly webhooks: unknown[];
+  readonly webhooks: Webhook[];
 }
 
 export interface RegisterWebhookResponse {
-  readonly webhook_id: string;
-  readonly endpoint_url: string;
-  readonly events: string[];
-  readonly created_at: number;
+  readonly webhook: Webhook;
 }
 
 export interface ListMembersResponse {
@@ -357,16 +352,26 @@ export interface DeepHealthResponse {
   readonly status: 'healthy' | 'degraded';
   readonly version: string;
   readonly protocol_version: string;
+  readonly capabilities: Record<string, string>;
   readonly timestamp: number;
   readonly dependencies: {
-    readonly d1: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
-    readonly r2: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
-    readonly kv: { status: 'ok' | 'failed'; latency_ms: number; error?: string };
+    readonly d1: { status: 'ok' | 'failed'; latency_ms: number };
+    readonly auth_storage: { status: 'ok' | 'failed'; latency_ms: number; contract_phase?: 'expand' | 'contract' };
+    readonly r2: { status: 'ok' | 'failed'; latency_ms: number };
+    readonly kv: { status: 'ok' | 'failed'; latency_ms: number };
   };
 }
 
 export interface GetMeResponse {
-  readonly user: User;
+  readonly user: Omit<User, 'org_id'> & {
+    readonly org_id: string | null;
+    readonly onboarding_completed: boolean;
+  };
+  readonly current_organization: {
+    readonly org_id: string | null;
+    readonly ba_org_id: string | null;
+    readonly role: RbacRole;
+  };
 }
 
 export interface IssueApiTokenResponse {
@@ -385,6 +390,7 @@ export interface HealthResponse {
   readonly status: string;
   readonly version: string;
   readonly protocol_version: string;
+  readonly capabilities: Record<string, string>;
   readonly timestamp: number;
 }
 
@@ -420,10 +426,6 @@ export interface ErrorResponse {
     readonly details?: Record<string, unknown>;
   };
 }
-
-// ---------------------------------------------------------------------------
-// Client configuration
-// ---------------------------------------------------------------------------
 
 export interface ElydoraClientConfig {
   readonly orgId: string;
