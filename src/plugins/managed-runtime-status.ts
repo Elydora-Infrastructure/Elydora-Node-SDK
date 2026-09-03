@@ -111,3 +111,24 @@ export async function managedRuntimeFilesExist(
       options.auditOptions ?? { nativePayload: true },
     );
 }
+
+// Presence-only check: identity mismatch reports false; parse failures still throw.
+export async function managedRuntimePresent(
+  contract: ManagedRuntimeContract,
+  agentKey: string,
+): Promise<boolean> {
+  const agentDirectory = path.dirname(contract.guardPath);
+  const configPath = path.join(agentDirectory, 'config.json');
+  const snapshot = await readPhysicalFile(configPath, 'Elydora runtime config', MAX_CONFIG_BYTES);
+  if (!snapshot) return false;
+  const config = parseStrictJsonObject(snapshot.contents, `Elydora runtime config at ${configPath}`);
+  if (config.agent_name !== agentKey || !sameAgentId(config.agent_id, contract.agentId)) {
+    return false;
+  }
+  const files = await Promise.all([
+    readPhysicalFile(contract.guardPath, 'Elydora guard runtime'),
+    readPhysicalFile(contract.auditPath, 'Elydora audit runtime'),
+    readPhysicalFile(path.join(agentDirectory, 'private.key'), 'Elydora private key', MAX_SECRET_BYTES),
+  ]);
+  return files.every(Boolean);
+}
