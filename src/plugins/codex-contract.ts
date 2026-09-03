@@ -7,7 +7,7 @@ import {
   parseEncodedWindowsCommand,
   parseLegacyWindowsCommand,
   parsePosixCommand,
-  quotePosix,
+  posixSource,
 } from './shell-command.js';
 import { isObject, parseStrictJsonObject, type JsonObject } from './strict-json.js';
 
@@ -45,7 +45,7 @@ export interface RuntimeContract {
 export function buildHandler(scriptPath: string, statusMessage: string): JsonObject {
   return {
     type: 'command',
-    command: `${quotePosix(process.execPath)} ${quotePosix(scriptPath)}`,
+    command: posixSource(scriptPath),
     commandWindows: encodedWindowsCommand(scriptPath),
     timeout: HOOK_TIMEOUT_SECONDS,
     statusMessage,

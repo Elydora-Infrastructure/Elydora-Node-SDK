@@ -7,8 +7,8 @@ import {
   isNodeExecutable,
   parsePosixCommand,
   parsePowerShellSource,
-  quotePosix,
-  quotePowerShell,
+  posixSource,
+  powerShellSource,
 } from './shell-command.js';
 import { isObject, parseStrictJsonObject, type JsonObject } from './strict-json.js';
 
@@ -52,8 +52,8 @@ export interface RuntimeContract {
 
 export function buildHandler(scriptPath: string): JsonObject {
   const command = process.platform === 'win32'
-    ? `& ${quotePowerShell(process.execPath)} ${quotePowerShell(scriptPath)}; exit $LASTEXITCODE`
-    : `${quotePosix(process.execPath)} ${quotePosix(scriptPath)}`;
+    ? powerShellSource(scriptPath)
+    : posixSource(scriptPath);
   return {
     command,
     timeout: HOOK_TIMEOUT_SECONDS,

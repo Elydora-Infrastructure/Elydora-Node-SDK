@@ -8,7 +8,7 @@ import {
   isPowerShellExecutable,
   parsePosixCommand,
   parsePowerShellSource,
-  quotePosix,
+  posixSource,
   quotePowerShell,
   windowsPowerShellPath,
 } from './shell-command.js';
@@ -28,7 +28,7 @@ export function buildGeminiCommand(scriptPath: string): string {
   }
   return process.platform === 'win32'
     ? windowsCommand(scriptPath)
-    : `${quotePosix(process.execPath)} ${quotePosix(scriptPath)}`;
+    : posixSource(scriptPath);
 }
 
 function parseWindowsCommand(command: string): readonly [string, string] | undefined {

@@ -1,6 +1,7 @@
 import path from 'node:path';
+import { samePath } from './common.js';
 
-interface ParsedArgument {
+export interface ParsedArgument {
   readonly value: string;
   readonly next: number;
 }
@@ -29,6 +30,10 @@ export function windowsPowerShellPath(): string {
   return path.win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 }
 
+export function posixSource(scriptPath: string): string {
+  return `${quotePosix(process.execPath)} ${quotePosix(scriptPath)}`;
+}
+
 export function powerShellSource(scriptPath: string): string {
   return `& ${quotePowerShell(process.execPath)} ${quotePowerShell(scriptPath)}${POWERSHELL_EXIT_SUFFIX}`;
 }
@@ -41,7 +46,9 @@ export function encodedWindowsCommand(scriptPath: string): string {
   return `"${windowsPowerShellPath()}" ${ENCODED_COMMAND_FLAGS} ${encodePowerShellSource(scriptPath)}`;
 }
 
+// The running executable, or a binary named node (node.exe case-insensitive on Windows).
 export function isNodeExecutable(filePath: string): boolean {
+  if (samePath(filePath, process.execPath)) return true;
   const basename = path.basename(filePath);
   return basename === 'node' || basename.toLowerCase() === 'node.exe';
 }
@@ -51,7 +58,7 @@ export function isPowerShellExecutable(filePath: string): boolean {
     && path.win32.basename(filePath).toLowerCase() === 'powershell.exe';
 }
 
-function readPosixArgument(command: string, start: number): ParsedArgument | undefined {
+export function readPosixArgument(command: string, start: number): ParsedArgument | undefined {
   if (command[start] !== "'") return undefined;
   let value = '';
   for (let index = start + 1; index < command.length;) {
