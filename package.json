@@ -8,8 +8,7 @@
     "elydora": "dist/cli.js"
   },
   "files": [
-    "dist",
-    "scripts"
+    "dist"
   ],
   "scripts": {
     "build": "tsc && node scripts/postbuild.mjs",

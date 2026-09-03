@@ -51,6 +51,16 @@ This repository owns the published `@elydora/sdk` package, its `elydora` CLI, lo
 - Read runtime config, private keys, status cache, chain state, and error logs through physical-file descriptors with identity checks. Write cache and validated chain state atomically, and append error logs through no-follow owner-only descriptors. Preserve rollback artifacts when recovery cannot safely restore an original file and include the recovery path in the surfaced error.
 - Resolve every agent runtime directory as one physical child of `~/.elydora`; reject separators, traversal segments, cross-platform reserved names, symbolic-link directories, and linked identity configs before writes or recursive removal. Validate stored directory identity before changing host CLI configuration, and require an explicit agent ID when discovery is ambiguous.
 
+## Shared Modules
+
+- `src/plugins/common.ts`: path and agent-id comparison, error helpers, size limits, `managedScriptReference`.
+- `src/plugins/shell-command.ts`: POSIX and PowerShell quoting, encoded Windows commands, command parsers, `isNodeExecutable`.
+- `src/plugins/managed-installation.ts` and `managed-transaction.ts`: preflight, prepare, and rollback-capable commit.
+- `src/plugins/managed-runtime-status.ts`: runtime config and key validation; `managedRuntimeFilesExist` and `managedRuntimePresent`.
+- `src/plugins/strict-json.ts` and `jsonc-edit.ts`: strict parsing and formatting-preserving JSONC edits.
+- `test-support/harness.mjs`: process runner, fake API server, fixture root, plugin runner; provider helper files wrap it.
+- Put logic used by two providers in a shared module; keep provider-specific rules in `<provider>-*.ts`.
+
 ## Verification
 
 Run the focused adapter test during development, then execute all release gates before commit:

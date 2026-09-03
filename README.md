@@ -124,7 +124,7 @@ const client = new ElydoraClient({
   baseUrl?: string,     // API base URL (default: https://api.elydora.com)
   ttlMs?: number,       // Operation TTL in ms (default: 30000)
   maxRetries?: number,  // Max retries on transient failures (default: 3)
-  kid?: string,         // Key ID (default: {agentId}-key-v1)
+  kid?: string,         // Key ID (default: {agentId}-key-1)
 });
 ```
 
@@ -143,8 +143,13 @@ client.setToken(auth.token);
 // Get current authenticated user profile
 const { user } = await client.getMe();
 
-// Issue a new API token (with optional TTL in seconds)
+// Issue an API token (optional TTL in seconds) and use it for later calls
 const { token, expires_at } = await client.issueApiToken(3600);
+client.setToken(token);
+
+// Rotate the API token the client currently holds
+const rotated = await client.rotateApiToken();
+client.setToken(rotated.token);
 ```
 
 ### Operations
@@ -182,6 +187,9 @@ const agent = await client.registerAgent({
 
 // Get agent details
 const details = await client.getAgent(agentId);
+
+// Change the integration type
+await client.updateAgent(agentId, 'cursor');
 
 // Freeze an agent
 await client.freezeAgent(agentId, 'security review');
@@ -245,7 +253,21 @@ const { keys } = await client.getJWKS();
 ```typescript
 // Check API health (no authentication required)
 const health = await client.health();
-// health.status, health.version, health.protocol_version, health.timestamp
+// health.status, health.version, health.protocol_version, health.capabilities, health.timestamp
+
+// Check dependency health (D1, auth storage, R2, KV)
+const deep = await client.deepHealth();
+```
+
+### Webhooks, Members, Admin Events
+
+```typescript
+const { webhooks } = await client.listWebhooks();
+const { webhook } = await client.registerWebhook(url, ['agent.status_changed'], secret);
+await client.deleteWebhook(webhook.webhook_id);
+
+const { members } = await client.listMembers();
+const { events } = await client.listAdminEvents(50);
 ```
 
 ### Client State
