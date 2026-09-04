@@ -344,7 +344,7 @@ export class ElydoraClient {
           body: body !== undefined ? JSON.stringify(body) : undefined,
         });
 
-        if (attempt < this.maxRetries && (res.status === 429 || res.status >= 500)) {
+        if (attempt < this.maxRetries && isIdempotent(method) && (res.status === 429 || res.status >= 500)) {
           const retryAfter = res.headers.get('Retry-After');
           const delayMs = retryAfter
             ? parseInt(retryAfter, 10) * 1000
@@ -370,6 +370,13 @@ export class ElydoraClient {
 
     throw lastError ?? new Error('Request failed after retries');
   }
+}
+
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']);
+
+/** A lost response to a non-idempotent request must not be replayed. */
+function isIdempotent(method: string): boolean {
+  return IDEMPOTENT_METHODS.has(method.toUpperCase());
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
