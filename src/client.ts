@@ -361,10 +361,11 @@ export class ElydoraClient {
           throw err;
         }
 
-        if (attempt < this.maxRetries) {
+        if (attempt < this.maxRetries && isIdempotent(method)) {
           await sleep(Math.min(1000 * 2 ** attempt, 10_000));
           continue;
         }
+        break;
       }
     }
 
